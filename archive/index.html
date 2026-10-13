@@ -1,0 +1,779 @@
+<!doctype html>
+<html lang="ko">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+  <title>Archive.</title>
+  <meta name="description" content="고등학생 오답노트 — AI 개념 분석, 해설, 유사 문제, 단원평가">
+  <meta name="theme-color" content="#0a0a0a">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/static/pretendard.min.css">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.css">
+  <script src="https://cdn.tailwindcss.com/3.4.5"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/katex.min.js"></script>
+  <script defer src="https://cdnjs.cloudflare.com/ajax/libs/KaTeX/0.16.9/contrib/auto-render.min.js"></script>
+  <script>
+    if (window.tailwind) tailwind.config = {
+      theme: { extend: { fontFamily: { sans: ['Pretendard', 'system-ui', 'sans-serif'] } } }
+    };
+  </script>
+  <style>
+    body { font-family: Pretendard, system-ui, sans-serif; -webkit-tap-highlight-color: transparent; }
+    .sheet { max-height: 92dvh; }
+    .no-scrollbar::-webkit-scrollbar { display: none; }
+    .no-scrollbar { scrollbar-width: none; }
+    .spinner { width: 18px; height: 18px; border: 2px solid currentColor; border-right-color: transparent; border-radius: 9999px; animation: spin .7s linear infinite; display: inline-block; }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    .katex-display { overflow-x: auto; overflow-y: hidden; padding: 4px 0; }
+  </style>
+</head>
+<body class="bg-neutral-50 text-neutral-900 antialiased">
+  <div class="mx-auto max-w-2xl min-h-dvh pb-28">
+    <!-- 헤더 -->
+    <header class="sticky top-0 z-20 bg-neutral-50/90 backdrop-blur px-4 pt-5 pb-3">
+      <div class="flex items-end justify-between">
+        <h1 class="text-3xl font-extrabold tracking-tight">Archive<span class="text-indigo-600">.</span></h1>
+        <p id="headerStat" class="text-sm text-neutral-500"></p>
+      </div>
+    </header>
+
+    <!-- 오답노트 -->
+    <section id="view-notes" class="px-4">
+      <div id="subjectFilter" class="no-scrollbar flex gap-2 overflow-x-auto pb-3"></div>
+      <div class="mb-3 flex gap-2">
+        <input id="search" type="search" placeholder="개념 태그·메모 검색" class="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm outline-none focus:border-indigo-500">
+        <select id="sort" class="rounded-xl border border-neutral-200 bg-white px-2 py-2 text-sm outline-none">
+          <option value="new">최신순</option>
+          <option value="attempt">덜 푼 순</option>
+          <option value="hard">어려운 순</option>
+        </select>
+      </div>
+      <ul id="noteList" class="space-y-3"></ul>
+    </section>
+
+    <!-- 단원평가 -->
+    <section id="view-exam" class="hidden px-4">
+      <div class="rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200">
+        <h2 class="text-lg font-bold">맞춤 단원평가</h2>
+        <p class="mt-1 text-sm text-neutral-500">내 오답을 바탕으로 2022 개정 교육과정 기준 5문항 시험지를 만들어요.</p>
+        <div class="mt-4 flex gap-2">
+          <select id="examSubject" class="min-w-0 flex-1 rounded-xl border border-neutral-200 bg-white px-3 py-2.5 text-sm outline-none"></select>
+          <button id="makeExam" class="shrink-0 rounded-xl bg-neutral-900 px-4 py-2.5 text-sm font-semibold text-white active:scale-95">시험지 만들기</button>
+        </div>
+        <p id="examInfo" class="mt-2 text-xs text-neutral-500"></p>
+      </div>
+      <div id="examPaper" class="mt-4"></div>
+    </section>
+
+    <!-- 과목 관리 -->
+    <section id="view-subjects" class="hidden px-4">
+      <ul id="subjectList" class="space-y-2"></ul>
+      <button id="addSubject" class="mt-4 w-full rounded-2xl border-2 border-dashed border-neutral-300 py-4 text-sm font-semibold text-neutral-500 active:bg-neutral-100">+ 과목 추가</button>
+      <button id="resetData" class="mt-8 w-full py-2 text-xs text-neutral-400 underline">모든 데이터 초기화</button>
+    </section>
+  </div>
+
+  <!-- 추가 버튼 -->
+  <button id="fab" aria-label="오답 추가" class="fixed bottom-24 right-5 z-30 grid h-14 w-14 place-items-center rounded-full bg-indigo-600 text-3xl font-light text-white shadow-lg shadow-indigo-600/30 active:scale-95">+</button>
+
+  <!-- 하단 탭 -->
+  <nav class="fixed inset-x-0 bottom-0 z-30 border-t border-neutral-200 bg-white/95 backdrop-blur" style="padding-bottom: env(safe-area-inset-bottom)">
+    <div class="mx-auto grid max-w-2xl grid-cols-3 text-xs">
+      <button data-tab="notes" class="tab flex flex-col items-center gap-1 py-3"><span class="text-lg">📒</span>오답노트</button>
+      <button data-tab="exam" class="tab flex flex-col items-center gap-1 py-3"><span class="text-lg">📝</span>단원평가</button>
+      <button data-tab="subjects" class="tab flex flex-col items-center gap-1 py-3"><span class="text-lg">📚</span>과목</button>
+    </div>
+  </nav>
+
+  <!-- 바텀시트 -->
+  <div id="overlay" class="fixed inset-0 z-40 hidden bg-black/40"></div>
+  <div id="sheet" class="sheet fixed inset-x-0 bottom-0 z-50 mx-auto hidden max-w-2xl overflow-y-auto rounded-t-3xl bg-white p-5 shadow-2xl" style="padding-bottom: calc(1.25rem + env(safe-area-inset-bottom))"></div>
+
+  <!-- 토스트 -->
+  <div id="toast" class="pointer-events-none fixed inset-x-0 top-6 z-[60] mx-auto hidden w-fit max-w-[90%] rounded-full bg-neutral-900 px-4 py-2 text-sm text-white shadow-lg"></div>
+
+<script>
+/* ============ 상수 / 저장소 ============ */
+const KEY_NOTES = 'archive.notes.v1';
+const KEY_SUBJECTS = 'archive.subjects.v1';
+const PATTERNS = ['개념 부족', '계산 실수', '문제 잘못 읽음', '조건 놓침', '시간 부족', '응용 못함', '찍음', '기타'];
+const COLORS = ['#6366f1', '#ef4444', '#f59e0b', '#10b981', '#0ea5e9', '#8b5cf6', '#ec4899', '#64748b'];
+const DEFAULT_SUBJECTS = [
+  { name: '공통국어', color: '#ef4444' },
+  { name: '공통수학', color: '#6366f1' },
+  { name: '공통영어', color: '#0ea5e9' },
+  { name: '한국사', color: '#f59e0b' },
+  { name: '통합사회', color: '#10b981' },
+  { name: '통합과학', color: '#8b5cf6' },
+];
+
+const uid = () => Date.now().toString(36) + Math.random().toString(36).slice(2, 7);
+const load = (k, fallback) => { try { const v = JSON.parse(localStorage.getItem(k)); return v ?? fallback; } catch { return fallback; } };
+
+let notes = load(KEY_NOTES, []);
+let subjects = load(KEY_SUBJECTS, null) || DEFAULT_SUBJECTS.map(s => ({ id: uid(), ...s }));
+
+function save() {
+  try {
+    localStorage.setItem(KEY_NOTES, JSON.stringify(notes));
+    localStorage.setItem(KEY_SUBJECTS, JSON.stringify(subjects));
+    return true;
+  } catch (e) {
+    toast('저장 공간이 부족해요. 오래된 오답이나 사진을 지워 주세요.');
+    return false;
+  }
+}
+
+/* ============ 유틸 ============ */
+const $ = (s, el = document) => el.querySelector(s);
+const esc = (s) => String(s ?? '').replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]));
+const rich = (s) => esc(s).replace(/\n/g, '<br>');
+const subjectColor = (name) => (subjects.find(s => s.name === name) || {}).color || '#94a3b8';
+const stars = (n) => '★'.repeat(n || 0) + '☆'.repeat(5 - (n || 0));
+const fmtDate = (iso) => { const d = new Date(iso); return `${d.getMonth() + 1}.${d.getDate()}`; };
+const CIRCLED = ['①', '②', '③', '④', '⑤'];
+
+function toast(msg) {
+  const t = $('#toast');
+  t.textContent = msg;
+  t.classList.remove('hidden');
+  clearTimeout(toast._t);
+  toast._t = setTimeout(() => t.classList.add('hidden'), 2600);
+}
+
+function renderMath(el) {
+  if (window.renderMathInElement) {
+    renderMathInElement(el, {
+      delimiters: [{ left: '$$', right: '$$', display: true }, { left: '$', right: '$', display: false }],
+      throwOnError: false,
+    });
+  }
+}
+
+// 사진을 최대 1280px JPEG로 줄여 data URL로 (localStorage·API 용량 절약)
+function compressImage(file, max = 1280, quality = 0.78) {
+  return new Promise((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onerror = reject;
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = reject;
+      img.onload = () => {
+        const scale = Math.min(1, max / Math.max(img.width, img.height));
+        const c = document.createElement('canvas');
+        c.width = Math.round(img.width * scale);
+        c.height = Math.round(img.height * scale);
+        const ctx = c.getContext('2d');
+        ctx.fillStyle = '#fff';
+        ctx.fillRect(0, 0, c.width, c.height);
+        ctx.drawImage(img, 0, 0, c.width, c.height);
+        resolve(c.toDataURL('image/jpeg', quality));
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+async function callAI(action, payload) {
+  const res = await fetch('/api/ai', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ action, ...payload }),
+  });
+  let body;
+  try { body = await res.json(); } catch { throw new Error(`서버 응답 오류 (${res.status})`); }
+  if (!body.ok) throw new Error(body.error || 'AI 요청 실패');
+  return body.data;
+}
+
+// AI로 보내는 오답 정보 (사진 제외)
+const noteForAI = (n) => ({
+  subject: n.subject, concept_tag: n.concept_tag, pattern: n.pattern,
+  memo: n.memo, difficulty: n.difficulty, attempt_count: n.attempt_count,
+});
+
+/* ============ 탭 ============ */
+let currentTab = 'notes';
+let filterSubject = '전체';
+
+function setTab(tab) {
+  currentTab = tab;
+  ['notes', 'exam', 'subjects'].forEach(t => $('#view-' + t).classList.toggle('hidden', t !== tab));
+  document.querySelectorAll('.tab').forEach(b => {
+    const on = b.dataset.tab === tab;
+    b.classList.toggle('text-indigo-600', on);
+    b.classList.toggle('font-semibold', on);
+    b.classList.toggle('text-neutral-400', !on);
+  });
+  $('#fab').classList.toggle('hidden', tab !== 'notes');
+  render();
+}
+document.querySelectorAll('.tab').forEach(b => b.addEventListener('click', () => setTab(b.dataset.tab)));
+
+/* ============ 렌더 ============ */
+function render() {
+  $('#headerStat').textContent = `오답 ${notes.length}개`;
+  if (currentTab === 'notes') renderNotes();
+  if (currentTab === 'exam') renderExamForm();
+  if (currentTab === 'subjects') renderSubjects();
+}
+
+function renderNotes() {
+  const chips = ['전체', ...subjects.map(s => s.name)];
+  if (!chips.includes(filterSubject)) filterSubject = '전체';
+  $('#subjectFilter').innerHTML = chips.map(name => {
+    const on = name === filterSubject;
+    const count = name === '전체' ? notes.length : notes.filter(n => n.subject === name).length;
+    return `<button data-subject="${esc(name)}" class="shrink-0 rounded-full px-3.5 py-1.5 text-sm ${on ? 'bg-neutral-900 text-white' : 'bg-white text-neutral-600 ring-1 ring-neutral-200'}">${esc(name)} <span class="opacity-60">${count}</span></button>`;
+  }).join('');
+
+  const q = $('#search').value.trim().toLowerCase();
+  let list = notes.filter(n =>
+    (filterSubject === '전체' || n.subject === filterSubject) &&
+    (!q || `${n.concept_tag} ${n.memo} ${n.pattern}`.toLowerCase().includes(q))
+  );
+  const sort = $('#sort').value;
+  list.sort((a, b) =>
+    sort === 'attempt' ? (a.attempt_count - b.attempt_count) || b.created_at.localeCompare(a.created_at)
+    : sort === 'hard' ? (b.difficulty - a.difficulty) || b.created_at.localeCompare(a.created_at)
+    : b.created_at.localeCompare(a.created_at)
+  );
+
+  if (!list.length) {
+    $('#noteList').innerHTML = `<li class="py-20 text-center text-neutral-400">
+      <div class="text-4xl">🗂️</div>
+      <p class="mt-3 text-sm">${notes.length ? '조건에 맞는 오답이 없어요.' : '아직 오답이 없어요.<br>오른쪽 아래 + 버튼으로 추가해 보세요.'}</p></li>`;
+    return;
+  }
+
+  $('#noteList').innerHTML = list.map(n => `
+    <li>
+      <button data-id="${n.id}" class="note flex w-full gap-3 rounded-2xl bg-white p-3 text-left shadow-sm ring-1 ring-neutral-200 active:scale-[.99]">
+        ${n.image_url
+          ? `<img src="${n.image_url}" alt="" class="h-20 w-20 shrink-0 rounded-xl object-cover bg-neutral-100">`
+          : `<div class="grid h-20 w-20 shrink-0 place-items-center rounded-xl bg-neutral-100 text-2xl">📄</div>`}
+        <div class="min-w-0 flex-1">
+          <div class="flex items-center gap-1.5 text-xs">
+            <span class="h-2 w-2 rounded-full" style="background:${subjectColor(n.subject)}"></span>
+            <span class="font-medium text-neutral-600">${esc(n.subject)}</span>
+            <span class="text-neutral-300">·</span>
+            <span class="text-neutral-400">${fmtDate(n.created_at)}</span>
+            <span class="ml-auto text-amber-500">${stars(n.difficulty)}</span>
+          </div>
+          <p class="mt-1 truncate font-semibold">${esc(n.concept_tag) || '<span class="text-neutral-400">개념 미입력</span>'}</p>
+          <div class="mt-1.5 flex flex-wrap items-center gap-1.5 text-xs">
+            ${n.pattern ? `<span class="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-600">${esc(n.pattern)}</span>` : ''}
+            <span class="rounded-md bg-neutral-100 px-1.5 py-0.5 text-neutral-500">다시 푼 횟수 ${n.attempt_count}</span>
+          </div>
+          ${n.memo ? `<p class="mt-1 truncate text-xs text-neutral-400">${esc(n.memo)}</p>` : ''}
+        </div>
+      </button>
+    </li>`).join('');
+}
+
+$('#subjectFilter').addEventListener('click', e => {
+  const b = e.target.closest('[data-subject]');
+  if (b) { filterSubject = b.dataset.subject; renderNotes(); }
+});
+$('#search').addEventListener('input', renderNotes);
+$('#sort').addEventListener('change', renderNotes);
+$('#noteList').addEventListener('click', e => {
+  const b = e.target.closest('.note');
+  if (b) openDetail(b.dataset.id);
+});
+
+/* ============ 바텀시트 ============ */
+function openSheet(html) {
+  const s = $('#sheet');
+  s.innerHTML = `<div class="mx-auto mb-4 h-1.5 w-10 rounded-full bg-neutral-200"></div>` + html;
+  s.scrollTop = 0;
+  s.classList.remove('hidden');
+  $('#overlay').classList.remove('hidden');
+  document.body.style.overflow = 'hidden';
+  return s;
+}
+function closeSheet() {
+  $('#sheet').classList.add('hidden');
+  $('#overlay').classList.add('hidden');
+  document.body.style.overflow = '';
+}
+$('#overlay').addEventListener('click', closeSheet);
+document.addEventListener('keydown', e => { if (e.key === 'Escape') closeSheet(); });
+
+/* ============ 오답 추가 / 편집 ============ */
+$('#fab').addEventListener('click', () => openEditor());
+
+function openEditor(id) {
+  const editing = id ? notes.find(n => n.id === id) : null;
+  const n = editing || {
+    subject: filterSubject !== '전체' ? filterSubject : (subjects[0]?.name || ''),
+    concept_tag: '', pattern: '', memo: '', image_url: '', difficulty: 3,
+  };
+  if (!subjects.length) { toast('먼저 과목을 추가해 주세요.'); setTab('subjects'); return; }
+
+  const s = openSheet(`
+    <div class="flex items-center justify-between">
+      <h2 class="text-xl font-bold">${editing ? '오답 편집' : '오답 추가'}</h2>
+      <button data-close class="text-sm text-neutral-400">닫기</button>
+    </div>
+
+    <label class="mt-5 block text-sm font-semibold">과목</label>
+    <div id="edSubjects" class="mt-2 flex flex-wrap gap-2">
+      ${subjects.map(sb => `<button type="button" data-v="${esc(sb.name)}" class="rounded-full px-3 py-1.5 text-sm ring-1 ring-neutral-200">${esc(sb.name)}</button>`).join('')}
+    </div>
+
+    <label class="mt-5 block text-sm font-semibold">문제 사진</label>
+    <div class="mt-2">
+      <label id="edPhotoBox" class="relative flex min-h-36 cursor-pointer items-center justify-center overflow-hidden rounded-2xl border-2 border-dashed border-neutral-300 bg-neutral-50 text-sm text-neutral-400">
+        <input id="edPhoto" type="file" accept="image/*" class="hidden">
+        <span id="edPhotoHint">📷 사진 촬영 또는 선택</span>
+        <img id="edPhotoImg" alt="" class="hidden max-h-72 w-full object-contain">
+      </label>
+      <div class="mt-2 flex gap-2">
+        <button id="edAnalyze" type="button" class="flex-1 rounded-xl bg-indigo-50 py-2.5 text-sm font-semibold text-indigo-700 disabled:opacity-40">✨ AI로 개념 자동 추출</button>
+        <button id="edPhotoRemove" type="button" class="hidden rounded-xl px-3 text-sm text-neutral-400">사진 삭제</button>
+      </div>
+      <p id="edAnalyzeInfo" class="mt-2 hidden rounded-xl bg-indigo-50/60 p-3 text-xs leading-relaxed text-indigo-900"></p>
+    </div>
+
+    <label class="mt-5 block text-sm font-semibold" for="edTag">개념 태그</label>
+    <input id="edTag" value="${esc(n.concept_tag)}" placeholder="예: 이차함수의 최대·최소, 판별식" class="mt-2 w-full rounded-xl border border-neutral-200 px-3 py-2.5 outline-none focus:border-indigo-500">
+
+    <label class="mt-5 block text-sm font-semibold">틀린 이유</label>
+    <div id="edPattern" class="mt-2 flex flex-wrap gap-2">
+      ${PATTERNS.map(p => `<button type="button" data-v="${p}" class="rounded-full px-3 py-1.5 text-sm ring-1 ring-neutral-200">${p}</button>`).join('')}
+    </div>
+
+    <label class="mt-5 block text-sm font-semibold">난이도</label>
+    <div id="edDiff" class="mt-2 flex gap-1 text-3xl text-amber-400">
+      ${[1, 2, 3, 4, 5].map(i => `<button type="button" data-v="${i}" aria-label="난이도 ${i}">☆</button>`).join('')}
+    </div>
+
+    <label class="mt-5 block text-sm font-semibold" for="edMemo">메모</label>
+    <textarea id="edMemo" rows="3" placeholder="헷갈렸던 부분, 선생님 설명 등" class="mt-2 w-full resize-none rounded-xl border border-neutral-200 px-3 py-2.5 outline-none focus:border-indigo-500">${esc(n.memo)}</textarea>
+
+    <button id="edSave" class="mt-6 w-full rounded-2xl bg-neutral-900 py-3.5 font-semibold text-white active:scale-[.99]">${editing ? '저장' : '추가하기'}</button>
+  `);
+
+  const st = { subject: n.subject, pattern: n.pattern, difficulty: n.difficulty || 3, image: n.image_url || '' };
+
+  const paintChips = (wrap, value) => wrap.querySelectorAll('[data-v]').forEach(b => {
+    const on = b.dataset.v === value;
+    b.classList.toggle('bg-neutral-900', on);
+    b.classList.toggle('text-white', on);
+    b.classList.toggle('ring-neutral-900', on);
+  });
+  const paintDiff = () => $('#edDiff', s).querySelectorAll('[data-v]').forEach(b => { b.textContent = +b.dataset.v <= st.difficulty ? '★' : '☆'; });
+  const paintPhoto = () => {
+    const has = !!st.image;
+    $('#edPhotoImg', s).classList.toggle('hidden', !has);
+    $('#edPhotoHint', s).classList.toggle('hidden', has);
+    $('#edPhotoRemove', s).classList.toggle('hidden', !has);
+    $('#edAnalyze', s).disabled = !has;
+    if (has) $('#edPhotoImg', s).src = st.image;
+  };
+  paintChips($('#edSubjects', s), st.subject);
+  paintChips($('#edPattern', s), st.pattern);
+  paintDiff();
+  paintPhoto();
+
+  $('#edSubjects', s).addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { st.subject = b.dataset.v; paintChips($('#edSubjects', s), st.subject); } });
+  $('#edPattern', s).addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { st.pattern = st.pattern === b.dataset.v ? '' : b.dataset.v; paintChips($('#edPattern', s), st.pattern); } });
+  $('#edDiff', s).addEventListener('click', e => { const b = e.target.closest('[data-v]'); if (b) { st.difficulty = +b.dataset.v; paintDiff(); } });
+  $('[data-close]', s).addEventListener('click', closeSheet);
+
+  $('#edPhoto', s).addEventListener('change', async e => {
+    const file = e.target.files[0];
+    if (!file) return;
+    try { st.image = await compressImage(file); paintPhoto(); }
+    catch { toast('사진을 불러오지 못했어요.'); }
+  });
+  $('#edPhotoRemove', s).addEventListener('click', () => { st.image = ''; $('#edPhoto', s).value = ''; paintPhoto(); });
+
+  $('#edAnalyze', s).addEventListener('click', async () => {
+    const btn = $('#edAnalyze', s);
+    btn.disabled = true;
+    btn.innerHTML = '<span class="spinner align-middle"></span> 분석 중…';
+    try {
+      const r = await callAI('analyze', { image: st.image, subject: st.subject });
+      if (Array.isArray(r.concept_tags) && r.concept_tags.length) $('#edTag', s).value = r.concept_tags.join(', ');
+      if (r.difficulty >= 1 && r.difficulty <= 5) { st.difficulty = Math.round(r.difficulty); paintDiff(); }
+      const info = $('#edAnalyzeInfo', s);
+      info.innerHTML = `${r.unit ? `<b>${esc(r.unit)}</b><br>` : ''}${rich(r.problem_summary || '')}${r.subject ? `<br><span class="opacity-60">AI가 본 과목: ${esc(r.subject)}</span>` : ''}`;
+      info.classList.remove('hidden');
+      renderMath(info);
+      toast('개념을 추출했어요.');
+    } catch (err) {
+      toast(err.message);
+    } finally {
+      btn.disabled = !st.image;
+      btn.textContent = '✨ AI로 개념 자동 추출';
+    }
+  });
+
+  $('#edSave', s).addEventListener('click', () => {
+    if (!st.subject) { toast('과목을 선택해 주세요.'); return; }
+    const data = {
+      subject: st.subject,
+      concept_tag: $('#edTag', s).value.trim(),
+      pattern: st.pattern,
+      memo: $('#edMemo', s).value.trim(),
+      image_url: st.image,
+      difficulty: st.difficulty,
+    };
+    const backup = JSON.stringify(notes);
+    if (editing) {
+      const changedProblem = editing.image_url !== data.image_url || editing.concept_tag !== data.concept_tag || editing.subject !== data.subject;
+      Object.assign(editing, data);
+      if (changedProblem) { delete editing.ai_explain; delete editing.ai_similar; }
+    } else {
+      notes.unshift({ id: uid(), ...data, attempt_count: 0, created_at: new Date().toISOString() });
+    }
+    if (!save()) { notes = JSON.parse(backup); return; }
+    closeSheet();
+    render();
+    if (editing) openDetail(editing.id);
+    toast(editing ? '저장했어요.' : '오답을 추가했어요.');
+  });
+}
+
+/* ============ 오답 상세 + AI 해설 / 유사 문제 ============ */
+function openDetail(id) {
+  const n = notes.find(x => x.id === id);
+  if (!n) return;
+  const s = openSheet(`
+    <div class="flex items-center gap-2 text-sm">
+      <span class="h-2.5 w-2.5 rounded-full" style="background:${subjectColor(n.subject)}"></span>
+      <span class="font-semibold">${esc(n.subject)}</span>
+      <span class="text-neutral-400">${new Date(n.created_at).toLocaleDateString('ko-KR')}</span>
+      <button data-close class="ml-auto text-neutral-400">닫기</button>
+    </div>
+    <h2 class="mt-2 text-xl font-bold">${esc(n.concept_tag) || '개념 미입력'}</h2>
+    <div class="mt-2 flex flex-wrap items-center gap-1.5 text-xs">
+      <span class="text-amber-500 text-sm">${stars(n.difficulty)}</span>
+      ${n.pattern ? `<span class="rounded-md bg-rose-50 px-1.5 py-0.5 text-rose-600">${esc(n.pattern)}</span>` : ''}
+    </div>
+    ${n.image_url ? `<img src="${n.image_url}" alt="문제 사진" class="mt-4 w-full rounded-2xl bg-neutral-100 object-contain">` : ''}
+    ${n.memo ? `<p class="mt-4 whitespace-pre-wrap rounded-2xl bg-neutral-50 p-3 text-sm text-neutral-700">${esc(n.memo)}</p>` : ''}
+
+    <div class="mt-4 flex items-center justify-between rounded-2xl bg-neutral-50 p-3">
+      <div class="text-sm">다시 푼 횟수 <b id="dAttempt" class="text-lg">${n.attempt_count}</b></div>
+      <button id="dRetry" class="rounded-xl bg-white px-3 py-2 text-sm font-semibold ring-1 ring-neutral-200 active:scale-95">✔ 다시 풀었어요 +1</button>
+    </div>
+
+    <div class="mt-6">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold">AI 해설</h3>
+        <button id="dExplainRe" class="hidden text-xs text-neutral-400">다시 생성</button>
+      </div>
+      <div id="dExplain" class="mt-2"></div>
+    </div>
+
+    <div class="mt-6">
+      <div class="flex items-center justify-between">
+        <h3 class="font-bold">유사 문제</h3>
+        <button id="dSimilarRe" class="hidden text-xs text-neutral-400">새로 만들기</button>
+      </div>
+      <div id="dSimilar" class="mt-2"></div>
+    </div>
+
+    <div class="mt-8 grid grid-cols-2 gap-2">
+      <button id="dEdit" class="rounded-xl bg-neutral-100 py-3 text-sm font-semibold">편집</button>
+      <button id="dDelete" class="rounded-xl bg-rose-50 py-3 text-sm font-semibold text-rose-600">삭제</button>
+    </div>
+  `);
+
+  $('[data-close]', s).addEventListener('click', closeSheet);
+  $('#dRetry', s).addEventListener('click', () => {
+    n.attempt_count += 1;
+    save();
+    $('#dAttempt', s).textContent = n.attempt_count;
+    renderNotes();
+  });
+  $('#dEdit', s).addEventListener('click', () => openEditor(n.id));
+  $('#dDelete', s).addEventListener('click', () => {
+    if (!confirm('이 오답을 삭제할까요?')) return;
+    notes = notes.filter(x => x.id !== n.id);
+    save(); closeSheet(); render(); toast('삭제했어요.');
+  });
+
+  /* --- 해설: 힌트 → 힌트2 → 해설 → 정답 단계 공개 --- */
+  const explainBox = $('#dExplain', s);
+  const showExplainStart = () => {
+    explainBox.innerHTML = `<button id="dExplainGo" class="w-full rounded-2xl bg-indigo-600 py-3 text-sm font-semibold text-white active:scale-[.99]">✨ 힌트·해설·정답 생성</button>`;
+    $('#dExplainGo', s).addEventListener('click', genExplain);
+  };
+  const paintExplain = (step = 1) => {
+    const e = n.ai_explain;
+    const block = (title, body, cls = 'bg-neutral-50') => `<div class="rounded-2xl ${cls} p-3 text-sm leading-relaxed"><p class="mb-1 text-xs font-bold text-neutral-500">${title}</p>${rich(body)}</div>`;
+    const parts = [];
+    if (e.problem_summary) parts.push(block('문제 요약', e.problem_summary));
+    if (Array.isArray(e.concepts) && e.concepts.length) parts.push(`<div class="flex flex-wrap gap-1.5">${e.concepts.map(c => `<span class="rounded-full bg-indigo-50 px-2.5 py-1 text-xs text-indigo-700">${esc(c)}</span>`).join('')}</div>`);
+    parts.push(block('💡 힌트 1', e.hint, 'bg-amber-50'));
+    if (step >= 2 && e.hint2) parts.push(block('💡 힌트 2', e.hint2, 'bg-amber-50'));
+    if (step >= 3) parts.push(block('📖 해설', e.explanation));
+    if (step >= 4) {
+      parts.push(block('✅ 정답', e.answer, 'bg-emerald-50'));
+      if (e.key_point) parts.push(block('📌 다음엔 이렇게', e.key_point, 'bg-indigo-50'));
+    }
+    const next = [null, e.hint2 ? '힌트 더 보기' : '해설 보기', '해설 보기', '정답 보기'][step];
+    const nextStep = step === 1 && !e.hint2 ? 3 : step + 1;
+    explainBox.innerHTML = `<div class="space-y-2">${parts.join('')}</div>` +
+      (step < 4 ? `<button id="dNext" class="mt-2 w-full rounded-2xl bg-neutral-900 py-3 text-sm font-semibold text-white">${next}</button>` : '');
+    if (step < 4) $('#dNext', s).addEventListener('click', () => paintExplain(nextStep));
+    $('#dExplainRe', s).classList.remove('hidden');
+    renderMath(explainBox);
+  };
+  async function genExplain() {
+    explainBox.innerHTML = `<div class="flex items-center gap-2 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-500"><span class="spinner"></span> 문제를 분석하고 있어요…</div>`;
+    try {
+      n.ai_explain = await callAI('explain', { note: noteForAI(n), image: n.image_url || undefined });
+      save();
+      paintExplain(1);
+    } catch (err) {
+      toast(err.message);
+      n.ai_explain ? paintExplain(1) : showExplainStart();
+    }
+  }
+  $('#dExplainRe', s).addEventListener('click', genExplain);
+  n.ai_explain ? paintExplain(1) : showExplainStart();
+
+  /* --- 유사 문제 --- */
+  const simBox = $('#dSimilar', s);
+  const showSimilarStart = () => {
+    simBox.innerHTML = `<button id="dSimilarGo" class="w-full rounded-2xl bg-white py-3 text-sm font-semibold text-indigo-700 ring-1 ring-indigo-200 active:scale-[.99]">🔁 유사 문제 3개 만들기</button>`;
+    $('#dSimilarGo', s).addEventListener('click', genSimilar);
+  };
+  const paintSimilar = () => {
+    simBox.innerHTML = `<div class="space-y-3">${n.ai_similar.map((p, i) => quizCard(p, i, `sim-${i}`)).join('')}</div>`;
+    bindQuiz(simBox, n.ai_similar, true);
+    $('#dSimilarRe', s).classList.remove('hidden');
+    renderMath(simBox);
+  };
+  async function genSimilar() {
+    simBox.innerHTML = `<div class="flex items-center gap-2 rounded-2xl bg-neutral-50 p-4 text-sm text-neutral-500"><span class="spinner"></span> 유사 문제를 만들고 있어요…</div>`;
+    try {
+      const r = await callAI('similar', { note: noteForAI(n), image: n.image_url || undefined, count: 3 });
+      n.ai_similar = (r.problems || []).filter(validQuestion);
+      if (!n.ai_similar.length) throw new Error('문제를 만들지 못했어요. 다시 시도해 주세요.');
+      save();
+      paintSimilar();
+    } catch (err) {
+      toast(err.message);
+      n.ai_similar?.length ? paintSimilar() : showSimilarStart();
+    }
+  }
+  $('#dSimilarRe', s).addEventListener('click', genSimilar);
+  n.ai_similar?.length ? paintSimilar() : showSimilarStart();
+}
+
+/* ============ 객관식 문제 카드 (유사 문제·단원평가 공용) ============ */
+const validQuestion = (q) => q && q.question && Array.isArray(q.choices) && q.choices.length >= 2 && Number.isInteger(q.answer) && q.answer >= 0 && q.answer < q.choices.length;
+const stripCircled = (c) => String(c).replace(/^\s*[①②③④⑤]\s*/, '');
+
+function quizCard(q, i, key) {
+  return `
+    <div class="quiz rounded-2xl bg-white p-4 ring-1 ring-neutral-200" data-i="${i}">
+      <p class="text-xs font-bold text-indigo-600">${i + 1}번${q.concept ? ` · ${esc(q.concept)}` : ''}</p>
+      <p class="mt-1 text-sm leading-relaxed">${rich(q.question)}</p>
+      <div class="mt-3 space-y-1.5">
+        ${q.choices.map((c, j) => `
+          <button data-j="${j}" class="choice flex w-full gap-2 rounded-xl px-3 py-2 text-left text-sm ring-1 ring-neutral-200">
+            <span class="shrink-0">${CIRCLED[j] || j + 1}</span><span>${rich(stripCircled(c))}</span>
+          </button>`).join('')}
+      </div>
+      <div class="result mt-3 hidden rounded-xl bg-neutral-50 p-3 text-sm leading-relaxed"></div>
+    </div>`;
+}
+
+// instant=true: 고르면 바로 채점 / false: 선택만 하고 grade()로 채점
+function bindQuiz(root, questions, instant) {
+  const picks = {};
+  root.querySelectorAll('.quiz').forEach(card => {
+    const i = +card.dataset.i;
+    card.addEventListener('click', e => {
+      const b = e.target.closest('.choice');
+      if (!b || card.dataset.done) return;
+      picks[i] = +b.dataset.j;
+      card.querySelectorAll('.choice').forEach(x => {
+        const on = +x.dataset.j === picks[i];
+        x.classList.toggle('ring-2', on);
+        x.classList.toggle('ring-indigo-500', on);
+        x.classList.toggle('bg-indigo-50', on);
+      });
+      if (instant) gradeCard(card, questions[i], picks[i]);
+    });
+  });
+  return {
+    picks,
+    grade() {
+      let score = 0;
+      root.querySelectorAll('.quiz').forEach(card => {
+        const i = +card.dataset.i;
+        if (gradeCard(card, questions[i], picks[i])) score++;
+      });
+      return score;
+    },
+  };
+}
+
+function gradeCard(card, q, pick) {
+  card.dataset.done = '1';
+  const correct = pick === q.answer;
+  card.querySelectorAll('.choice').forEach(x => {
+    const j = +x.dataset.j;
+    x.classList.remove('ring-indigo-500', 'bg-indigo-50');
+    if (j === q.answer) x.classList.add('bg-emerald-50', 'ring-2', 'ring-emerald-500');
+    else if (j === pick) x.classList.add('bg-rose-50', 'ring-2', 'ring-rose-400');
+    else x.classList.add('opacity-50');
+  });
+  const r = card.querySelector('.result');
+  r.innerHTML = `<p class="mb-1 font-bold ${correct ? 'text-emerald-600' : 'text-rose-600'}">${correct ? '정답!' : pick === undefined ? `미응답 · 정답 ${CIRCLED[q.answer]}` : `오답 · 정답 ${CIRCLED[q.answer]}`}</p>${rich(q.explanation || '')}`;
+  r.classList.remove('hidden');
+  renderMath(r);
+  return correct;
+}
+
+/* ============ 단원평가 ============ */
+function examNotes(subject) {
+  return notes
+    .filter(n => subject === '전체' || n.subject === subject)
+    .sort((a, b) => (a.attempt_count - b.attempt_count) || (b.difficulty - a.difficulty));
+}
+
+function renderExamForm() {
+  const sel = $('#examSubject');
+  const prev = sel.value;
+  sel.innerHTML = ['전체', ...subjects.map(s => s.name)].map(n => `<option value="${esc(n)}">${esc(n)}</option>`).join('');
+  if ([...sel.options].some(o => o.value === prev)) sel.value = prev;
+  updateExamInfo();
+}
+function updateExamInfo() {
+  const cnt = examNotes($('#examSubject').value).length;
+  $('#examInfo').textContent = cnt
+    ? `오답 ${cnt}개를 분석해 자주 틀리고 덜 복습한 개념 위주로 출제해요.`
+    : '이 과목엔 오답이 없어요. 핵심 단원 위주로 출제해요.';
+}
+$('#examSubject').addEventListener('change', updateExamInfo);
+
+$('#makeExam').addEventListener('click', async () => {
+  const subject = $('#examSubject').value;
+  const btn = $('#makeExam');
+  const paper = $('#examPaper');
+  btn.disabled = true;
+  btn.innerHTML = '<span class="spinner align-middle"></span>';
+  paper.innerHTML = `<div class="flex items-center gap-2 rounded-2xl bg-white p-5 text-sm text-neutral-500 ring-1 ring-neutral-200"><span class="spinner"></span> 시험지를 만들고 있어요… (20초 정도 걸려요)</div>`;
+  try {
+    const r = await callAI('exam', { subject, notes: examNotes(subject).map(noteForAI) });
+    const qs = (r.questions || []).filter(validQuestion).slice(0, 5);
+    if (!qs.length) throw new Error('시험지를 만들지 못했어요. 다시 시도해 주세요.');
+    paper.innerHTML = `
+      <div class="rounded-2xl bg-neutral-900 p-4 text-white">
+        <p class="text-xs opacity-60">${esc(subject)} · ${new Date().toLocaleDateString('ko-KR')}</p>
+        <h3 class="mt-1 text-lg font-bold">${esc(r.title || '맞춤 단원평가')}</h3>
+      </div>
+      <div class="mt-3 space-y-3">${qs.map((q, i) => quizCard(q, i)).join('')}</div>
+      <div id="examScore" class="mt-4 hidden rounded-2xl bg-indigo-600 p-5 text-center text-white"></div>
+      <button id="gradeExam" class="mt-4 w-full rounded-2xl bg-indigo-600 py-3.5 font-semibold text-white">채점하기</button>`;
+    const quiz = bindQuiz(paper, qs, false);
+    $('#gradeExam').addEventListener('click', () => {
+      const unanswered = qs.length - Object.keys(quiz.picks).length;
+      if (unanswered && !confirm(`${unanswered}문항을 풀지 않았어요. 채점할까요?`)) return;
+      const score = quiz.grade();
+      const box = $('#examScore');
+      box.innerHTML = `<p class="text-sm opacity-80">점수</p><p class="text-4xl font-extrabold">${score} / ${qs.length}</p><p class="mt-1 text-sm opacity-80">${score === qs.length ? '완벽해요! 🎉' : '틀린 문제는 해설을 확인하고 오답노트에 추가해 보세요.'}</p>`;
+      box.classList.remove('hidden');
+      $('#gradeExam').remove();
+      box.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    });
+    renderMath(paper);
+  } catch (err) {
+    paper.innerHTML = `<p class="rounded-2xl bg-rose-50 p-4 text-sm text-rose-600">${esc(err.message)}</p>`;
+  } finally {
+    btn.disabled = false;
+    btn.textContent = '시험지 만들기';
+  }
+});
+
+/* ============ 과목 관리 ============ */
+function renderSubjects() {
+  $('#subjectList').innerHTML = subjects.length ? subjects.map(s => {
+    const cnt = notes.filter(n => n.subject === s.name).length;
+    return `
+      <li class="flex items-center gap-3 rounded-2xl bg-white p-4 shadow-sm ring-1 ring-neutral-200">
+        <span class="h-4 w-4 shrink-0 rounded-full" style="background:${s.color}"></span>
+        <div class="min-w-0 flex-1">
+          <p class="truncate font-semibold">${esc(s.name)}</p>
+          <p class="text-xs text-neutral-400">오답 ${cnt}개</p>
+        </div>
+        <button data-edit="${s.id}" class="rounded-lg px-3 py-1.5 text-sm text-neutral-600 ring-1 ring-neutral-200">편집</button>
+        <button data-del="${s.id}" class="rounded-lg px-3 py-1.5 text-sm text-rose-600 ring-1 ring-rose-200">삭제</button>
+      </li>`;
+  }).join('') : '<li class="py-10 text-center text-sm text-neutral-400">과목이 없어요.</li>';
+}
+
+$('#subjectList').addEventListener('click', e => {
+  const ed = e.target.closest('[data-edit]');
+  const del = e.target.closest('[data-del]');
+  if (ed) openSubjectEditor(ed.dataset.edit);
+  if (del) {
+    const s = subjects.find(x => x.id === del.dataset.del);
+    const cnt = notes.filter(n => n.subject === s.name).length;
+    if (!confirm(cnt ? `'${s.name}' 과목과 오답 ${cnt}개를 모두 삭제할까요?` : `'${s.name}' 과목을 삭제할까요?`)) return;
+    subjects = subjects.filter(x => x.id !== s.id);
+    notes = notes.filter(n => n.subject !== s.name);
+    save(); render(); toast('삭제했어요.');
+  }
+});
+$('#addSubject').addEventListener('click', () => openSubjectEditor());
+
+function openSubjectEditor(id) {
+  const editing = id ? subjects.find(s => s.id === id) : null;
+  let color = editing?.color || COLORS[subjects.length % COLORS.length];
+  const s = openSheet(`
+    <h2 class="text-xl font-bold">${editing ? '과목 편집' : '과목 추가'}</h2>
+    <input id="sbName" value="${esc(editing?.name || '')}" placeholder="예: 대수, 물리학, 확률과 통계" maxlength="20" class="mt-4 w-full rounded-xl border border-neutral-200 px-3 py-3 outline-none focus:border-indigo-500">
+    <p class="mt-4 text-sm font-semibold">색상</p>
+    <div id="sbColors" class="mt-2 flex flex-wrap gap-3">
+      ${COLORS.map(c => `<button data-c="${c}" class="h-9 w-9 rounded-full" style="background:${c}" aria-label="색상 ${c}"></button>`).join('')}
+    </div>
+    <div class="mt-6 grid grid-cols-2 gap-2">
+      <button data-close class="rounded-xl bg-neutral-100 py-3 text-sm font-semibold">취소</button>
+      <button id="sbSave" class="rounded-xl bg-neutral-900 py-3 text-sm font-semibold text-white">저장</button>
+    </div>
+  `);
+  const paint = () => $('#sbColors', s).querySelectorAll('[data-c]').forEach(b => {
+    b.style.boxShadow = b.dataset.c === color ? `0 0 0 3px #fff, 0 0 0 5px ${color}` : '';
+  });
+  paint();
+  $('#sbColors', s).addEventListener('click', e => { const b = e.target.closest('[data-c]'); if (b) { color = b.dataset.c; paint(); } });
+  $('[data-close]', s).addEventListener('click', closeSheet);
+  $('#sbName', s).focus();
+  $('#sbSave', s).addEventListener('click', () => {
+    const name = $('#sbName', s).value.trim();
+    if (!name) { toast('과목 이름을 입력해 주세요.'); return; }
+    if (subjects.some(x => x.name === name && x.id !== id)) { toast('이미 있는 과목이에요.'); return; }
+    if (editing) {
+      notes.forEach(n => { if (n.subject === editing.name) n.subject = name; });
+      if (filterSubject === editing.name) filterSubject = name;
+      Object.assign(editing, { name, color });
+    } else {
+      subjects.push({ id: uid(), name, color });
+    }
+    save(); closeSheet(); render();
+  });
+}
+
+$('#resetData').addEventListener('click', () => {
+  if (!confirm('모든 오답과 과목을 삭제하고 처음 상태로 돌릴까요? 되돌릴 수 없어요.')) return;
+  notes = [];
+  subjects = DEFAULT_SUBJECTS.map(s => ({ id: uid(), ...s }));
+  save(); render(); toast('초기화했어요.');
+});
+
+/* ============ 시작 ============ */
+save();
+setTab('notes');
+</script>
+</body>
+</html>

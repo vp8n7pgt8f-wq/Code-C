@@ -1,0 +1,14 @@
+# Netlify 사이트 설정에서 Base directory 를 "archive" 로 지정하세요.
+# (아래 경로는 모두 base directory 기준)
+[build]
+  publish = "."
+  functions = "netlify/functions"
+
+[functions]
+  node_bundler = "esbuild"
+
+[[headers]]
+  for = "/*"
+  [headers.values]
+    X-Content-Type-Options = "nosniff"
+    Referrer-Policy = "strict-origin-when-cross-origin"
