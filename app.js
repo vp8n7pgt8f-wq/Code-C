@@ -33,9 +33,17 @@ const DEFAULT_STATE = {
   mode: 0,
   order: 'seq',        // 'seq' | 'random'
   seqPos: 0,           // 순서대로 모드에서 현재 묶음의 시작 위치
+  seqStep: BATCH,      // 지난번 묶음에서 순서상 몇 칸을 썼는지
+  batchNo: 0,          // 지금까지 넘긴 묶음 수 (헷갈림 단어 섞기용)
   current: [],         // 현재 화면에 있는 단어 id 3개
   theme: 'system',     // 'system' | 'light' | 'dark'
+  fontScale: 1,        // 글자 크기 배율
+  autoNext: 0,         // 자동 넘김 초 (0 = 끄기)
+  hideKnown: true,     // 외웠음 단어를 묶음에서 뺄지
+  wakeLock: false,     // 화면 꺼짐 방지
 };
+
+const HARD_WEIGHT = 3;  // 랜덤에서 헷갈림 단어가 뽑힐 가중치
 
 /* ---------- 저장소 ---------- */
 
@@ -92,6 +100,12 @@ const el = {
   closeSettingsBtn: $('closeSettingsBtn'),
   themeSeg: $('themeSeg'),
   orderSeg: $('orderSeg'),
+  fontRange: $('fontRange'),
+  fontValue: $('fontValue'),
+  autoSeg: $('autoSeg'),
+  knownSeg: $('knownSeg'),
+  wakeSeg: $('wakeSeg'),
+  wakeStatus: $('wakeStatus'),
   addForm: $('addForm'),
   addEn: $('addEn'),
   addKo: $('addKo'),
@@ -112,27 +126,50 @@ const el = {
 
 // 카드에 나올 수 있는 단어 목록
 function pool() {
-  return words;
+  return state.hideKnown ? words.filter((w) => w.status !== 'known') : words;
 }
 
 function wordById(id) {
   return words.find((w) => w.id === id);
 }
 
+// 순서대로: seqPos부터 3개. 두 묶음마다 한 번은 2개만 순서대로 가져오고
+// 나머지 한 자리에 헷갈림 단어를 넣는다.
 function pickSequential(list) {
   const n = list.length;
-  if (n <= BATCH) return { ids: list.map((w) => w.id), advance: n };
-  const ids = [];
-  for (let i = 0; i < BATCH; i++) ids.push(list[(state.seqPos + i) % n].id);
-  return { ids, advance: BATCH };
+  if (n <= BATCH) return { ids: list.map((w) => w.id), step: n };
+  const at = (i) => list[(state.seqPos + i) % n];
+  if (state.batchNo % 2 === 1) {
+    const ids = [at(0).id, at(1).id];
+    const hard = list.filter((w) => w.status === 'hard' && !ids.includes(w.id) && w.id !== at(2).id);
+    if (hard.length) {
+      ids.push(hard[Math.floor(Math.random() * hard.length)].id);
+      return { ids, step: 2 };
+    }
+  }
+  return { ids: [at(0).id, at(1).id, at(2).id], step: BATCH };
 }
 
+// 랜덤: 헷갈림 단어에 가중치를 주어 중복 없이 3개
 function pickRandom(list) {
   if (list.length <= BATCH) return shuffle(list.map((w) => w.id));
   // 가능하면 지금 화면의 단어는 피한다
   let candidates = list.filter((w) => !state.current.includes(w.id));
   if (candidates.length < BATCH) candidates = list.slice();
-  return shuffle(candidates.map((w) => w.id)).slice(0, BATCH);
+  const ids = [];
+  while (ids.length < BATCH) {
+    const total = candidates.reduce((sum, w) => sum + weight(w), 0);
+    let r = Math.random() * total;
+    let i = 0;
+    while (i < candidates.length - 1 && (r -= weight(candidates[i])) >= 0) i++;
+    ids.push(candidates[i].id);
+    candidates.splice(i, 1);
+  }
+  return ids;
+}
+
+function weight(w) {
+  return w.status === 'hard' ? HARD_WEIGHT : 1;
 }
 
 function shuffle(arr) {
@@ -151,15 +188,15 @@ function chooseBatch(advance) {
     saveState();
     return;
   }
+  if (advance) state.batchNo++;
   if (state.order === 'random') {
     state.current = pickRandom(list);
   } else {
-    if (advance) {
-      const prev = state.current.length || BATCH;
-      state.seqPos = (state.seqPos + prev) % list.length;
-    }
+    if (advance) state.seqPos += state.seqStep || BATCH;
     state.seqPos = ((state.seqPos % list.length) + list.length) % list.length;
-    state.current = pickSequential(list).ids;
+    const pick = pickSequential(list);
+    state.current = pick.ids;
+    state.seqStep = pick.step;
   }
   revealed.clear();
   saveState();
@@ -177,6 +214,7 @@ function ensureBatch() {
 function next() {
   chooseBatch(true);
   renderCards();
+  restartAuto();
 }
 
 /* ---------- 카드 표시 ---------- */
@@ -193,11 +231,47 @@ function renderCards() {
     el.cards.appendChild(emptyMsg('단어가 없습니다.\n⚙︎ 설정에서 단어를 추가하세요.'));
     return;
   }
+  if (state.current.length === 0) {
+    el.cards.appendChild(emptyMsg('모든 단어를 외웠어요!\n⚙︎ 설정에서 단어를 추가하거나\n외운 단어를 "포함"으로 바꾸세요.'));
+    return;
+  }
 
   for (const id of state.current) {
     const w = wordById(id);
     if (w) el.cards.appendChild(cardEl(w, mode));
   }
+  fitCards();
+}
+
+// 카드 안에 글자가 다 들어가지 않으면 그 카드의 글자를 조금씩 줄인다 (--fit 배율)
+function fitCards() {
+  for (const card of el.cards.querySelectorAll('.card')) {
+    const box = card.querySelector('.card-text');
+    let fit = 1;
+    box.style.setProperty('--fit', '1');
+    while (fit > 0.4 && overflowing(box)) {
+      fit -= 0.05;
+      box.style.setProperty('--fit', fit.toFixed(2));
+    }
+  }
+}
+
+function overflowing(box) {
+  if (box.scrollHeight > box.clientHeight + 1) return true;
+  for (const line of box.querySelectorAll('.en, .ko')) {
+    if (line.scrollHeight > line.clientHeight + 1 || line.scrollWidth > line.clientWidth + 1) return true;
+  }
+  return false;
+}
+
+if ('ResizeObserver' in window) {
+  let raf = 0;
+  new ResizeObserver(() => {
+    cancelAnimationFrame(raf);
+    raf = requestAnimationFrame(fitCards);
+  }).observe(el.cards);
+} else {
+  window.addEventListener('resize', fitCards);
 }
 
 function emptyMsg(text) {
@@ -225,7 +299,7 @@ function lineEl(cls, text, masked, hint) {
 function cardEl(w, mode) {
   const isRevealed = revealed.has(w.id);
   const card = document.createElement('div');
-  card.className = 'card';
+  card.className = 'card' + (w.status === 'known' || w.status === 'hard' ? ' ' + w.status : '');
   card.dataset.id = w.id;
   card.tabIndex = 0;
   card.setAttribute('role', 'button');
@@ -238,11 +312,39 @@ function cardEl(w, mode) {
     lineEl('en', w.en, hideEn, '탭해서 영어 보기'),
     lineEl('ko', w.ko, hideKo, '탭해서 뜻 보기'),
   );
-  card.appendChild(text);
+  const actions = document.createElement('div');
+  actions.className = 'card-actions';
+  actions.append(
+    actBtn('speak', '🔊', '발음 듣기'),
+    actBtn('known', '✓', '외웠음', w.status === 'known'),
+    actBtn('hard', '?', '헷갈림', w.status === 'hard'),
+  );
+  card.append(text, actions);
 
   const hidden = hideEn ? '영어 가려짐, ' + w.ko : hideKo ? w.en + ', 뜻 가려짐' : w.en + ', ' + w.ko;
   card.setAttribute('aria-label', hidden);
   return card;
+}
+
+function actBtn(action, text, label, pressed) {
+  const b = document.createElement('button');
+  b.type = 'button';
+  b.className = 'act';
+  b.dataset.action = action;
+  b.textContent = text;
+  b.setAttribute('aria-label', label);
+  b.title = label;
+  if (pressed !== undefined) b.setAttribute('aria-pressed', String(pressed));
+  return b;
+}
+
+// 외웠음/헷갈림 표시를 켜고 끈다 (둘은 함께 켜질 수 없음)
+function toggleStatus(id, status) {
+  const w = wordById(id);
+  if (!w) return;
+  w.status = w.status === status ? 'none' : status;
+  saveWords();
+  renderCards();   // 지금 묶음은 그대로 두고, 다음 묶음부터 반영
 }
 
 function toggleReveal(id) {
@@ -256,7 +358,16 @@ function toggleReveal(id) {
 
 el.cards.addEventListener('click', (e) => {
   const card = e.target.closest('.card');
-  if (card) toggleReveal(card.dataset.id);
+  if (!card) return;
+  const act = e.target.closest('.act');
+  if (!act) {
+    toggleReveal(card.dataset.id);
+    return;
+  }
+  const id = card.dataset.id;
+  if (act.dataset.action === 'speak') speak(wordById(id));
+  else toggleStatus(id, act.dataset.action);
+  restartAuto();
 });
 
 el.cards.addEventListener('keydown', (e) => {
@@ -329,6 +440,12 @@ function setSeg(seg, value) {
 function renderSettings() {
   setSeg(el.themeSeg, state.theme);
   setSeg(el.orderSeg, state.order);
+  setSeg(el.autoSeg, state.autoNext);
+  setSeg(el.knownSeg, state.hideKnown ? 'hide' : 'show');
+  setSeg(el.wakeSeg, state.wakeLock ? 'on' : 'off');
+  el.fontRange.value = state.fontScale;
+  el.fontValue.textContent = Math.round(state.fontScale * 100) + '%';
+  renderWakeStatus();
 }
 
 function onSeg(seg, fn) {
@@ -343,6 +460,114 @@ function onSeg(seg, fn) {
 
 onSeg(el.themeSeg, (v) => { state.theme = v; applyTheme(); });
 onSeg(el.orderSeg, (v) => { state.order = v; });
+onSeg(el.autoSeg, (v) => { state.autoNext = Number(v); restartAuto(); });
+onSeg(el.knownSeg, (v) => { state.hideKnown = v === 'hide'; });
+onSeg(el.wakeSeg, (v) => { state.wakeLock = v === 'on'; updateWakeLock(); });
+
+el.fontRange.addEventListener('input', () => {
+  state.fontScale = Number(el.fontRange.value);
+  applyFont();
+  fitCards();
+  el.fontValue.textContent = Math.round(state.fontScale * 100) + '%';
+});
+el.fontRange.addEventListener('change', saveState);
+
+/* ---------- 글자 크기 ---------- */
+
+function applyFont() {
+  const v = Math.min(1.6, Math.max(0.6, Number(state.fontScale) || 1));
+  document.documentElement.style.setProperty('--scale', String(v));
+}
+
+/* ---------- 발음 듣기 (Web Speech API) ---------- */
+
+let enVoice = null;
+
+function pickVoice() {
+  if (!('speechSynthesis' in window)) return;
+  const voices = speechSynthesis.getVoices().filter((v) => /^en[-_]/i.test(v.lang));
+  enVoice =
+    voices.find((v) => /^en[-_]US$/i.test(v.lang) && v.localService) ||
+    voices.find((v) => /^en[-_]US$/i.test(v.lang)) ||
+    voices[0] || null;
+}
+
+if ('speechSynthesis' in window) {
+  pickVoice();
+  speechSynthesis.addEventListener('voiceschanged', pickVoice);
+}
+
+function speak(w) {
+  if (!w) return;
+  if (!('speechSynthesis' in window)) {
+    toast('이 브라우저는 음성 읽기를 지원하지 않습니다.');
+    return;
+  }
+  speechSynthesis.cancel();
+  const u = new SpeechSynthesisUtterance(w.en);
+  u.lang = enVoice ? enVoice.lang : 'en-US';
+  if (enVoice) u.voice = enVoice;
+  u.rate = 0.9;
+  speechSynthesis.speak(u);
+}
+
+/* ---------- 자동 넘김 ---------- */
+
+let autoTimer = 0;
+
+function restartAuto() {
+  clearInterval(autoTimer);
+  autoTimer = 0;
+  if (state.autoNext > 0) {
+    autoTimer = setInterval(() => {
+      // 설정 화면을 보고 있거나 앱이 가려져 있으면 넘기지 않는다
+      if (el.settings.hidden && document.visibilityState === 'visible') {
+        chooseBatch(true);
+        renderCards();
+      }
+    }, state.autoNext * 1000);
+  }
+}
+
+/* ---------- 화면 꺼짐 방지 (Wake Lock API) ---------- */
+
+let wakeSentinel = null;
+const wakeSupported = 'wakeLock' in navigator;
+
+async function updateWakeLock() {
+  if (!wakeSupported) { renderWakeStatus(); return; }
+  if (state.wakeLock && document.visibilityState === 'visible') {
+    if (!wakeSentinel) {
+      try {
+        wakeSentinel = await navigator.wakeLock.request('screen');
+        wakeSentinel.addEventListener('release', () => {
+          wakeSentinel = null;
+          renderWakeStatus();
+        });
+      } catch (err) {
+        wakeSentinel = null;
+      }
+    }
+  } else if (wakeSentinel) {
+    const s = wakeSentinel;
+    wakeSentinel = null;
+    await s.release().catch(() => {});
+  }
+  renderWakeStatus();
+}
+
+function renderWakeStatus() {
+  if (!wakeSupported) el.wakeStatus.textContent = '이 브라우저는 지원하지 않습니다';
+  else if (!state.wakeLock) el.wakeStatus.textContent = '';
+  else el.wakeStatus.textContent = wakeSentinel ? '작동 중' : '앱이 화면에 보일 때 작동';
+}
+
+// 다른 앱으로 갔다 오면 Wake Lock이 풀리므로 다시 요청
+document.addEventListener('visibilitychange', updateWakeLock);
+// 시작할 때 요청이 거절됐으면 첫 터치 때 다시 시도
+document.addEventListener('pointerdown', () => {
+  if (state.wakeLock && !wakeSentinel) updateWakeLock();
+});
 
 /* ---------- 단어 추가 / 수정 / 삭제 ---------- */
 
@@ -612,8 +837,11 @@ function toast(msg) {
 /* ---------- 시작 ---------- */
 
 applyTheme();
+applyFont();
 ensureBatch();
 renderCards();
+restartAuto();
+updateWakeLock();
 
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   window.addEventListener('load', () => {

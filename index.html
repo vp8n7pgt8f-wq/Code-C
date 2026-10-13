@@ -52,7 +52,33 @@
             <button type="button" class="btn" data-value="random">랜덤</button>
           </div>
         </div>
-        <!--STAGE2_SETTINGS-->
+        <div class="row">
+          <label class="label" for="fontRange">글자 크기 <span id="fontValue" class="sub-inline"></span></label>
+          <input id="fontRange" class="range" type="range" min="0.6" max="1.6" step="0.05">
+        </div>
+        <div class="row">
+          <span class="label">자동 넘김</span>
+          <div class="seg" id="autoSeg" role="radiogroup" aria-label="자동 넘김">
+            <button type="button" class="btn" data-value="0">끄기</button>
+            <button type="button" class="btn" data-value="30">30초</button>
+            <button type="button" class="btn" data-value="60">1분</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="label">외운 단어<span class="sub">✓ 표시한 단어를 묶음에서 뺄지</span></span>
+          <div class="seg" id="knownSeg" role="radiogroup" aria-label="외운 단어">
+            <button type="button" class="btn" data-value="hide">빼기</button>
+            <button type="button" class="btn" data-value="show">포함</button>
+          </div>
+        </div>
+        <div class="row">
+          <span class="label">화면 꺼짐 방지<span id="wakeStatus" class="sub"></span></span>
+          <div class="seg" id="wakeSeg" role="radiogroup" aria-label="화면 꺼짐 방지">
+            <button type="button" class="btn" data-value="off">끄기</button>
+            <button type="button" class="btn" data-value="on">켜기</button>
+          </div>
+        </div>
+        <p class="hint">? 헷갈림 표시한 단어는 랜덤에서 3배 자주, 순서대로에서는 두 묶음마다 한 번씩 섞여 나옵니다.</p>
       </section>
 
       <section class="group">
