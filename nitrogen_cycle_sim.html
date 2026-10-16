@@ -1,0 +1,1181 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>질소 순환 속 암모늄 이온</title>
+<style>
+:root{
+  --bg:#f4f1ea; --card:#ffffff; --ink:#1f2328; --sub:#5b6168; --line:#d9d4c8;
+  --accent:#e8740c; --nh4:#2f6fdc; --nh3:#9a6bd8; --ok:#2e9e5b; --leach:#2b9fb8; --vol:#9a6bd8;
+  --chip:#efebe2;
+}
+@media (prefers-color-scheme: dark){
+  :root:not([data-theme="light"]){ --bg:#16181b; --card:#202328; --ink:#e9e6df; --sub:#a4a9b0; --line:#363a41;
+    --chip:#2a2e34; }
+}
+:root[data-theme="dark"]{ --bg:#16181b; --card:#202328; --ink:#e9e6df; --sub:#a4a9b0; --line:#363a41; --chip:#2a2e34; }
+*{box-sizing:border-box}
+html,body{margin:0;background:var(--bg);color:var(--ink);
+  font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR","Malgun Gothic",sans-serif;
+  -webkit-text-size-adjust:100%;}
+header{padding:14px 16px 6px}
+header h1{font-size:1.12rem;margin:0 0 4px;line-height:1.35}
+header p{margin:0;color:var(--sub);font-size:.84rem;line-height:1.45}
+.wrap{display:grid;grid-template-columns:1fr;gap:12px;padding:8px 16px 16px;max-width:1100px;margin:0 auto}
+@media (min-width:860px){ .wrap{grid-template-columns:minmax(340px,440px) 1fr;align-items:start}
+  .scene{position:sticky;top:8px} }
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px}
+.scene{padding:0;overflow:hidden}
+#sim{display:block;width:100%;touch-action:manipulation}
+.controls{display:grid;gap:10px}
+.row{display:flex;flex-wrap:wrap;align-items:center;gap:8px}
+.row label.t{font-size:.82rem;color:var(--sub);min-width:84px}
+.seg{display:inline-flex;background:var(--chip);border-radius:10px;padding:3px;gap:2px;flex-wrap:wrap}
+.seg button{border:0;background:transparent;color:var(--ink);padding:7px 10px;border-radius:8px;font-size:.84rem;cursor:pointer}
+.seg button.on{background:var(--card);box-shadow:0 1px 3px rgba(0,0,0,.18);font-weight:700}
+.btn{border:1px solid var(--line);background:var(--card);color:var(--ink);padding:8px 12px;border-radius:10px;font-size:.86rem;cursor:pointer}
+.btn.primary{background:var(--accent);border-color:var(--accent);color:#fff;font-weight:700}
+input[type=range]{flex:1;min-width:150px;accent-color:var(--accent)}
+.phval{font-weight:800;font-variant-numeric:tabular-nums;min-width:56px;text-align:right}
+.ratio{display:flex;height:22px;border-radius:7px;overflow:hidden;font-size:.74rem;font-weight:700;color:#fff}
+.ratio div{display:flex;align-items:center;justify-content:center;white-space:nowrap;transition:width .2s}
+.ratio .a{background:var(--nh4)} .ratio .b{background:var(--nh3)}
+.formula{font-size:.78rem;color:var(--sub);margin-top:4px;line-height:1.5}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px}
+.stat{background:var(--chip);border-radius:10px;padding:8px 6px;text-align:center}
+.stat b{display:block;font-size:1.25rem;font-variant-numeric:tabular-nums}
+.stat span{font-size:.72rem;color:var(--sub)}
+.stat .pct{font-size:.78rem;color:var(--ink);font-weight:700}
+.stat.p b{color:var(--ok)} .stat.v b{color:var(--vol)} .stat.l b{color:var(--leach)}
+.split{font-size:.76rem;color:var(--sub);margin-top:6px;line-height:1.5}
+.steps{display:flex;flex-wrap:wrap;gap:4px;margin-bottom:10px}
+.steps span{font-size:.72rem;padding:4px 7px;border-radius:999px;background:var(--chip);color:var(--sub)}
+.steps span.on{background:var(--accent);color:#fff;font-weight:700}
+.steps span{cursor:pointer}
+.stepnav{display:flex;align-items:center;gap:8px}
+.stepnav .btn{white-space:nowrap}
+#stepLbl{flex:1;text-align:center;font-size:.8rem;color:var(--sub);line-height:1.35}
+#stepLbl b{color:var(--accent)}
+.ex-wrap{display:grid;gap:12px}
+@media (min-width:640px){ .ex-wrap{grid-template-columns:300px 1fr} }
+#exCanvas{width:100%;max-width:300px;aspect-ratio:300/240;background:var(--chip);border-radius:12px;touch-action:none;cursor:grab;display:block;margin:0 auto}
+#exPhase{font-size:.8rem;min-height:2.6em;text-align:center;margin-top:6px;font-weight:700;color:var(--accent);line-height:1.35}
+.extable{width:100%;border-collapse:collapse;font-size:.8rem}
+.extable th,.extable td{border-bottom:1px solid var(--line);padding:6px 4px;text-align:left;vertical-align:top;line-height:1.4}
+.extable th{color:var(--sub);font-weight:600;white-space:nowrap}
+.extable td.h{font-weight:700;color:var(--nh4)}
+.extable thead th{color:var(--ink)}
+.lewis{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--chip);border-radius:8px;padding:8px 12px;white-space:pre;line-height:1.2;font-size:.9rem;display:inline-block;margin:4px 0}
+.expoints{margin:8px 0 0;padding-left:18px;font-size:.84rem;line-height:1.6}
+.explain{display:grid;grid-template-columns:1fr;gap:10px}
+@media (min-width:520px){ .explain{grid-template-columns:170px 1fr} }
+.molbox{text-align:center}
+#mol{width:160px;height:160px;background:var(--chip);border-radius:12px}
+.molcap{font-size:.74rem;color:var(--sub);line-height:1.45;margin-top:4px}
+#stageTitle{font-size:1rem;margin:0 0 6px}
+#stageText{font-size:.86rem;line-height:1.62}
+#stageText p{margin:0 0 7px}
+#stageText .eq{font-family:ui-monospace,Menlo,Consolas,monospace;background:var(--chip);padding:2px 6px;border-radius:6px;font-size:.8rem;display:inline-block}
+.note{font-size:.78rem;color:var(--accent);min-height:1.2em;margin-bottom:4px;font-weight:700}
+h2.sec{font-size:.92rem;margin:0 0 8px}
+footer{max-width:1100px;margin:0 auto;padding:0 16px 30px}
+footer ul{margin:6px 0 0;padding-left:18px;font-size:.82rem;line-height:1.6;color:var(--sub)}
+.legend{display:flex;flex-wrap:wrap;gap:10px;font-size:.74rem;color:var(--sub);margin-top:8px}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:4px;vertical-align:-1px}
+</style>
+</head>
+<body>
+<header>
+  <h1>질소 순환 속 암모늄 이온(NH₄⁺)<br>— 구조가 바뀌면 질소의 운명이 달라진다</h1>
+  <p>토양 단면도 위에서 질소 원자들이 움직입니다. 주황색 테두리의 입자가 지금 추적 중인 질소 원자예요.</p>
+</header>
+
+<div class="wrap">
+  <div class="card scene">
+    <canvas id="sim" aria-label="질소 순환 애니메이션"></canvas>
+  </div>
+
+  <div style="display:grid;gap:12px">
+    <div class="card controls">
+      <div class="stepnav">
+        <button class="btn" id="prevS">◀ 이전 단계</button>
+        <div id="stepLbl">자동 흐름 중<br>단계 버튼으로 하나씩 볼 수 있어요</div>
+        <button class="btn" id="nextS">다음 단계 ▶</button>
+      </div>
+      <div class="row">
+        <button class="btn primary" id="play">⏸ 일시정지</button>
+        <button class="btn" id="autoS" style="display:none">↻ 자동 흐름으로</button>
+        <div class="seg" id="speed">
+          <button data-v="0.5">0.5배</button><button data-v="1" class="on">1배</button><button data-v="2">2배</button>
+        </div>
+        <button class="btn" id="retrack">🔄 다른 입자 추적하기</button>
+      </div>
+      <div class="row">
+        <label class="t" for="ph">토양 pH</label>
+        <input type="range" id="ph" min="4" max="10" step="0.1" value="8">
+        <span class="phval" id="phv">8.0</span>
+      </div>
+      <div>
+        <div class="ratio"><div class="a" id="ra">NH₄⁺</div><div class="b" id="rb">NH₃</div></div>
+        <div class="formula" id="rf"></div>
+      </div>
+      <div class="row">
+        <label class="t">질소 고정 경로</label>
+        <div class="seg" id="mode">
+          <button data-v="bio" class="on">생물학적 (뿌리혹)</button><button data-v="ind">산업적 (하버-보슈)</button>
+        </div>
+      </div>
+      <div class="row">
+        <label class="t">토양 음전하</label>
+        <div class="seg" id="charge">
+          <button data-v="0">적음</button><button data-v="1" class="on">보통</button><button data-v="2">많음</button>
+        </div>
+      </div>
+    </div>
+
+    <div class="card">
+      <h2 class="sec">실시간 집계 <span style="font-weight:400;color:var(--sub);font-size:.76rem">(조건을 바꾸면 새로 셉니다)</span></h2>
+      <div class="stats">
+        <div class="stat p"><span>단백질 도달</span><b id="sP">0</b><div class="pct" id="pP">–</div></div>
+        <div class="stat v"><span>휘발로 이탈</span><b id="sV">0</b><div class="pct" id="pV">–</div></div>
+        <div class="stat l"><span>용탈로 이탈</span><b id="sL">0</b><div class="pct" id="pL">–</div></div>
+      </div>
+      <div class="split" id="split"></div>
+    </div>
+
+    <div class="card">
+      <div class="steps" id="steps">
+        <span>① N₂</span><span>② 질소 고정</span><span>③ NH₃ ⇌ NH₄⁺</span><span>④ 흡착 / 휘발 / 용탈</span><span>⑤ 흡수·이동</span><span>⑥ 아미노산·단백질</span>
+      </div>
+      <div class="note" id="note"></div>
+      <div class="explain">
+        <div class="molbox">
+          <canvas id="mol" width="160" height="160"></canvas>
+          <div class="molcap" id="molcap"></div>
+        </div>
+        <div>
+          <h3 id="stageTitle"></h3>
+          <div id="stageText"></div>
+        </div>
+      </div>
+      <div class="legend">
+        <span><i style="background:#4f7cff"></i>질소(N)</span>
+        <span><i style="background:#f2f2f2;border:1px solid #888"></i>수소(H)</span>
+        <span><i style="background:#ff4d4d"></i>H⁺</span>
+        <span><i style="background:#8a5a34"></i>음전하 토양 입자</span>
+        <span><i style="background:#ff8c1a;border:2px solid #222"></i>추적 중</span>
+      </div>
+    </div>
+    <div class="card" id="explorer">
+      <h2 class="sec">암모늄 이온(NH₄⁺) 구조 탐구</h2>
+      <div class="ex-wrap">
+        <div>
+          <div class="seg" id="exView" style="display:flex;justify-content:center;margin-bottom:8px">
+            <button data-v="NH4" class="on">NH₄⁺</button><button data-v="NH3">NH₃</button><button data-v="ANIM">NH₃ + H⁺ → NH₄⁺</button>
+          </div>
+          <canvas id="exCanvas" aria-label="분자 3D 모형 (드래그해서 회전)"></canvas>
+          <div id="exPhase"></div>
+        </div>
+        <div>
+          <table class="extable">
+            <thead><tr><th></th><th>NH₃ (암모니아)</th><th>NH₄⁺ (암모늄 이온)</th></tr></thead>
+            <tbody>
+              <tr><th>N 주위 전자쌍</th><td>4개 (공유 3 + 비공유 1)</td><td class="h">4개 (공유 4 + 비공유 0)</td></tr>
+              <tr><th>전자쌍 배치</th><td>사면체</td><td class="h">사면체</td></tr>
+              <tr><th>분자 모양</th><td>삼각뿔형</td><td class="h">정사면체형</td></tr>
+              <tr><th>결합각</th><td>약 107°</td><td class="h">109.5°</td></tr>
+              <tr><th>N–H 결합</th><td>3개 동등</td><td class="h">4개 모두 동등</td></tr>
+              <tr><th>전하</th><td>0 (중성 분자)</td><td class="h">+1 (양이온)</td></tr>
+              <tr><th>극성</th><td>극성 분자 (쌍극자 상쇄 안 됨)</td><td class="h">대칭이라 쌍극자는 상쇄, 하지만 이온 전체가 +1</td></tr>
+              <tr><th>25 ℃ 상태</th><td>기체 (끓는점 −33 ℃)</td><td class="h">물에 녹은 이온 / 염(고체)</td></tr>
+              <tr><th>음전하 토양 입자와</th><td>정전기적 인력 없음 → 휘발</td><td class="h">정전기적 인력 → 붙잡힘(흡착)</td></tr>
+            </tbody>
+          </table>
+          <div style="margin-top:10px;font-size:.82rem;color:var(--sub)">NH₄⁺의 루이스 구조</div>
+          <div class="lewis">⎡     H     ⎤⁺
+⎢     |     ⎥
+⎢ H — N — H ⎥
+⎢     |     ⎥
+⎣     H     ⎦</div>
+          <ul class="expoints">
+            <li><b>생성:</b> NH₃의 비공유 전자쌍을 H⁺에 내주는 <b>배위 결합</b>으로 생깁니다.</li>
+            <li><b>네 결합은 동등:</b> 배위 결합으로 생긴 N–H도 일단 생기면 나머지 셋과 길이·세기가 같아 구별할 수 없습니다.</li>
+            <li><b>결합각이 커지는 이유:</b> 결합각을 좁히던 비공유 전자쌍이 공유 전자쌍이 되면서 네 전자쌍의 반발이 같아져 109.5°가 됩니다.</li>
+            <li><b>전하:</b> N의 형식 전하가 +1이고, 실제 전하는 이온 전체에 퍼져 있습니다. 전자 수(10개)와 모양이 메테인(CH₄)과 같습니다(등전자).</li>
+            <li><b>산-염기:</b> NH₄⁺는 NH₃의 짝산(pKa 9.25)입니다. pH가 높아지면 H⁺를 내놓고 NH₃로 돌아갑니다.</li>
+          </ul>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<footer>
+  <div class="card">
+    <h2 class="sec">이 시뮬레이션에서 단순화한 부분</h2>
+    <ul>
+      <li>질소 고정 효소(나이트로제네이스)가 전자와 수소 이온을 하나씩 여러 번 받아들이는 복잡한 단계를 <b>“N₂ → NH₃” 한 단계로 줄였습니다.</b> N₂ 한 분자에서 NH₃ 두 개가 생기지만, 그중 질소 원자 하나만 따라갑니다.</li>
+      <li>NH₃ 비율 1/(1+10<sup>(9.25−pH)</sup>)을 <b>휘발 가능성의 지표로만</b> 사용했습니다. 실제 휘발량은 온도, 토양 수분, 바람, 비료를 뿌린 방법 등에도 크게 좌우됩니다.</li>
+      <li>입자 갈림 비율은 NH₄⁺ 비율 = 1/(1+10<sup>(pH−9.25)</sup>) 식으로 계산하고, 누적 배분 방식으로 이 비율에 맞게 각 입자의 운명을 정했습니다.</li>
+      <li>실제 분자는 3차원이지만 단면도는 <b>2차원 그림</b>입니다. 입자 크기와 이동 속도도 실제 비율이 아닙니다.</li>
+      <li>온도는 <b>25 ℃로 고정</b>했습니다(pKa 9.25는 25 ℃ 값).</li>
+      <li>실제로는 흡수된 NH₄⁺의 상당 부분이 뿌리에서 곧바로 아미노산(글루타민)으로 바뀐 뒤 이동하지만, 여기서는 잎에서 바뀌는 것으로 나타냈습니다. NH₄⁺가 질산 이온(NO₃⁻)으로 바뀌는 질산화 과정과 탈질 과정은 생략했습니다.</li>
+      <li>토양 음전하가 “많음/보통/적음”일 때 NH₄⁺가 붙잡힐 확률을 각각 95% / 70% / 30%로 정했습니다(교육용 가정 값).</li>
+    </ul>
+  </div>
+</footer>
+
+<script>
+(() => {
+'use strict';
+/* ---------------- 기본 설정 ---------------- */
+const W = 360, H = 620, GY = 182;          // 가상 좌표, 지표면 높이
+const PKA = 9.25;
+const MAX_ACTIVE = 26, N_DECO = 6;          // 움직이는 입자 총 30개 내외
+const RETAIN = [0.30, 0.70, 0.95];          // 음전하 적음/보통/많음 → 붙잡힐 확률
+const SLOTS = [1, 2, 3];                    // 토양 입자 하나에 붙을 수 있는 NH₄⁺ 수
+const SIGNS = [2, 4, 6];                    // 토양 입자에 그리는 − 기호 수
+
+const st = {
+  ph: 8, mode: 'bio', charge: 1, speed: 1, playing: true, manual: false, manualIdx: 0,
+  counts: { P: 0, V: 0, L: 0 }, split: { a: 0, b: 0 }, splitAcc: Math.random(),
+};
+const fracNH4 = ph => 1 / (1 + Math.pow(10, ph - PKA));
+
+/* ---------------- 장면 구성 ---------------- */
+// 뿌리: 부모를 가리키는 노드 트리
+const roots = [{ x: 180, y: GY + 4, p: -1 }];
+const mainIdx = [0];
+for (let i = 1; i <= 18; i++) {
+  roots.push({ x: 180 + Math.sin(i * 0.7) * 4, y: GY + 4 + i * 15, p: mainIdx[i - 1] });
+  mainIdx.push(roots.length - 1);
+}
+const branchSpec = [[3, -1], [4, 1], [7, -1], [9, 1], [12, -1], [14, 1]];
+const nodules = [];
+branchSpec.forEach(([from, dir], bi) => {
+  let parent = mainIdx[from], { x, y } = roots[parent];
+  for (let k = 1; k <= 6; k++) {
+    x += dir * 11; y += 6 + k * 1.2;
+    roots.push({ x, y, p: parent }); parent = roots.length - 1;
+    if (bi < 5 && k === 3) nodules.push({ x: x + dir * 2, y: y + 7, glow: 0 });
+  }
+});
+const stem = [{ x: 180, y: GY - 4 }, { x: 180, y: 150 }, { x: 180, y: 125 }, { x: 180, y: 100 }, { x: 180, y: 75 }];
+const leaves = [
+  { sy: 150, side: -1 }, { sy: 128, side: 1 }, { sy: 104, side: -1 }, { sy: 80, side: 1 }
+].map(l => ({ ...l, x: 180 + l.side * 40, y: l.sy - 10, chain: 0, flash: 0 }));
+const clays = [[58, 250], [112, 300], [268, 236], [312, 300], [52, 372], [252, 352],
+  [118, 420], [302, 424], [70, 505], [206, 512], [292, 528], [136, 570]]
+  .map(([x, y]) => ({ x, y, r: 13, held: [], flash: 0 }));
+
+const decos = Array.from({ length: N_DECO }, (_, i) => ({
+  x: Math.random() * W, y: 22 + i * 24 + Math.random() * 10, vx: (Math.random() < .5 ? -1 : 1) * (6 + Math.random() * 8), a: Math.random() * 6
+}));
+const rain = Array.from({ length: 14 }, () => ({ x: Math.random() * W, y: Math.random() * H }));
+
+/* ---------------- 입자 ---------------- */
+let parts = [], nextId = 1, trackedId = null, spawnT = 0, batchT = 2.5, spreader = null;
+const ORDER = { fall_n2: 0, fert_fall: 0, dissolve: 0, fix: 1, release: 2, eq: 2, seek: 3, attract: 3,
+  held: 3, volat: 3, leach: 3, uptake: 4, transport: 4, amino: 5, protein: 5 };
+
+function spawnN2() {
+  const nd = nodules[Math.floor(Math.random() * nodules.length)];
+  parts.push({ id: nextId++, sp: 'N2', state: 'fall_n2', origin: 'bio', x: 20 + Math.random() * (W - 40),
+    y: 10 + Math.random() * 60, nd, t: 0, ph: Math.random() * 6 });
+}
+function spawnFert(x) {
+  parts.push({ id: nextId++, sp: 'FERT', state: 'fert_fall', origin: 'ind', x, y: 40 + Math.random() * 14,
+    tx: x, ty: GY + 30 + Math.random() * 330, t: 0, ph: Math.random() * 6 });
+}
+const tracked = () => parts.find(p => p.id === trackedId);
+
+function setState(p, s, dur) { p.state = s; p.t = 0; p.dur = dur || 0; }
+
+function decideSplit() {             // 누적 배분: 결과 비율이 계산식의 비율과 같아지도록
+  st.splitAcc += fracNH4(st.ph);
+  if (st.splitAcc >= 1) { st.splitAcc -= 1; st.split.a++; return 'NH4'; }
+  st.split.b++; return 'NH3';
+}
+
+function finish(p, kind) {
+  if (p.manual) { setupStage(p, curManualKey()); return; }
+  st.counts[kind]++;
+  p.dead = true;
+  if (p.id === trackedId) {
+    const msg = { P: '직전 추적 입자: 단백질에 도달했습니다 ✓', V: '직전 추적 입자: NH₃ 기체로 휘발해 대기로 빠져나갔습니다', L: '직전 추적 입자: 빗물에 씻겨 아래로 용탈되었습니다' }[kind];
+    showNote(msg + ' → 새 입자를 추적합니다');
+    trackedId = null;
+  }
+}
+
+function buildUptakePath(p) {
+  let best = 0, bd = 1e9;
+  roots.forEach((n, i) => { const d = (n.x - p.x) ** 2 + (n.y - p.y) ** 2; if (d < bd) { bd = d; best = i; } });
+  const path = [];
+  for (let i = best; i !== -1; i = roots[i].p) path.push({ x: roots[i].x, y: roots[i].y });
+  p.baseIdx = path.length;                      // 이 이후는 줄기
+  const leaf = leaves[Math.floor(Math.random() * leaves.length)];
+  stem.forEach(s => { if (s.y >= leaf.sy - 1) path.push(s); });
+  path.push({ x: 180 + leaf.side * 14, y: leaf.sy - 3 });
+  path.push({ x: leaf.x, y: leaf.y });
+  p.path = path; p.pi = 0; p.leaf = leaf;
+}
+
+function moveToward(p, tx, ty, v, dt) {
+  const dx = tx - p.x, dy = ty - p.y, d = Math.hypot(dx, dy);
+  if (d <= v * dt || d < 0.5) { p.x = tx; p.y = ty; return true; }
+  p.x += dx / d * v * dt; p.y += dy / d * v * dt; return false;
+}
+
+function update(p, dt) {
+  p.t += dt; p.ph += dt;
+  switch (p.state) {
+    case 'fall_n2': {
+      const arrived = moveToward(p, p.nd.x, p.nd.y, p.y < GY ? 34 : 24, dt);
+      p.x += Math.sin(p.ph * 2.2) * 8 * dt;
+      if (arrived || Math.hypot(p.x - p.nd.x, p.y - p.nd.y) < 3) { p.x = p.nd.x; p.y = p.nd.y; setState(p, 'fix', 2.4); }
+      break;
+    }
+    case 'fix':
+      p.nd.glow = 1;
+      if (p.t > p.dur * 0.55 && p.sp === 'N2') p.sp = 'NH3';
+      if (p.t >= p.dur) {
+        const a = Math.random() * Math.PI * 2;
+        p.tx = p.x + Math.cos(a) * 26; p.ty = Math.max(GY + 18, p.y + Math.sin(a) * 26);
+        setState(p, 'release');
+      }
+      break;
+    case 'release':
+      if (moveToward(p, p.tx, p.ty, 22, dt)) startEq(p);
+      break;
+    case 'fert_fall':
+      if (moveToward(p, p.x, GY + 2, 90, dt)) { p.sp = 'NH4'; setState(p, 'dissolve'); }
+      break;
+    case 'dissolve':
+      p.x += Math.sin(p.ph * 3) * 6 * dt;
+      if (moveToward(p, p.tx, p.ty, 38, dt)) startEq(p);
+      break;
+    case 'eq': {
+      const k = p.t / p.dur;
+      if (!p.result && k >= 0.55) {
+        p.result = p.forceResult || decideSplit();
+        p.sp = p.result;
+        if (p.origin === 'ind' && p.result === 'NH3') { p.hx = p.x; p.hy = p.y; p.hLeave = true; }
+      }
+      if (p.t >= p.dur) {
+        p.hx = null;
+        if (p.sp === 'NH3') setState(p, 'volat'); else seek(p);
+      }
+      break;
+    }
+    case 'attract': {
+      const c = p.clay, s = p.slot;
+      const tx = c.x + Math.cos(s) * (c.r + 6), ty = c.y + Math.sin(s) * (c.r + 6);
+      const d = Math.hypot(tx - p.x, ty - p.y);
+      const v = Math.min(240, 14 + 5200 / Math.max(d, 8));     // 가까울수록 빨라짐 (쿨롱 인력 흉내)
+      if (moveToward(p, tx, ty, v, dt)) { c.flash = 1; setState(p, 'held', 2.6 + Math.random() * 2.4); }
+      break;
+    }
+    case 'held': {
+      const c = p.clay;
+      p.x = c.x + Math.cos(p.slot) * (c.r + 6) + Math.sin(p.ph * 9) * 0.6;
+      p.y = c.y + Math.sin(p.slot) * (c.r + 6);
+      if (p.t >= p.dur) {
+        const hi = c.held.indexOf(p.id); if (hi >= 0) c.held.splice(hi, 1);
+        buildUptakePath(p); setState(p, 'uptake');
+      }
+      break;
+    }
+    case 'uptake': case 'transport': {
+      const q = p.path[p.pi];
+      if (moveToward(p, q.x, q.y, p.pi === 0 ? 30 : 46, dt)) {
+        p.pi++;
+        if (p.pi >= p.baseIdx && p.state === 'uptake') setState(p, 'transport');
+        if (p.pi >= p.path.length) setState(p, 'amino', 2.4);
+      }
+      break;
+    }
+    case 'amino':
+      if (p.t > p.dur * 0.5) p.sp = 'AA';
+      if (p.t >= p.dur) { setState(p, 'protein', 2.2); p.leaf.flash = 0; }
+      break;
+    case 'protein': {
+      const lf = p.leaf, end = chainPos(lf, lf.chain);
+      moveToward(p, end.x, end.y, 14, dt);
+      if (p.t > p.dur * 0.5) p.sp = 'PRO';
+      if (p.t >= p.dur) { lf.chain = (lf.chain + 1) % 9; lf.flash = 1; finish(p, 'P'); }
+      break;
+    }
+    case 'volat':
+      p.y -= (p.y > GY ? 30 : 46) * dt;
+      p.x += Math.sin(p.ph * 2.6) * 18 * dt;
+      if (p.y < -12) finish(p, 'V');
+      break;
+    case 'leach':
+      p.y += 34 * dt;
+      p.x += Math.sin(p.ph * 2) * 10 * dt;
+      if (p.y > H + 12) finish(p, 'L');
+      break;
+  }
+}
+function startEq(p) {
+  setState(p, 'eq', 1.8); p.result = null;
+  if (p.origin === 'bio') { const a = Math.random() * Math.PI * 2; p.hx = p.x + Math.cos(a) * 30; p.hy = p.y + Math.sin(a) * 30; p.hLeave = false; }
+  else p.hx = null;
+}
+function seek(p) {
+  if (Math.random() < RETAIN[st.charge]) {
+    let best = null, bd = 1e9;
+    for (const c of clays) {
+      if (c.held.length >= SLOTS[st.charge]) continue;
+      const d = Math.hypot(c.x - p.x, c.y - p.y);
+      if (d < bd) { bd = d; best = c; }
+    }
+    if (best) {
+      const used = best.held.map(id => (parts.find(q => q.id === id) || {}).slot);
+      let slot = Math.atan2(p.y - best.y, p.x - best.x);
+      for (const u of used) if (u != null && Math.abs(u - slot) < 0.9) slot += 2.1;
+      best.held.push(p.id); p.clay = best; p.slot = slot;
+      setState(p, 'attract'); return;
+    }
+  }
+  setState(p, 'leach');
+}
+function chainPos(lf, i) {
+  return { x: lf.x - lf.side * 16 + lf.side * i * 4.2, y: lf.y + Math.sin(i * 1.3) * 2 };
+}
+
+/* ---------------- 추적 대상 고르기 ---------------- */
+function pickTracked(exclude) {
+  const act = parts.filter(p => !p.dead && p.id !== exclude);
+  if (!act.length) { trackedId = null; return; }
+  let pool;
+  if (exclude != null) pool = act;
+  else {
+    const min = Math.min(...act.map(p => ORDER[p.state]));
+    pool = act.filter(p => ORDER[p.state] <= Math.max(min, 1));
+  }
+  trackedId = pool[Math.floor(Math.random() * pool.length)].id;
+}
+
+/* ---------------- 그리기: 장면 ---------------- */
+const cv = document.getElementById('sim'), ctx = cv.getContext('2d');
+let scale = 1;
+function resize() {
+  const w = cv.clientWidth || 360, dpr = Math.min(window.devicePixelRatio || 1, 2);
+  scale = w / W;
+  cv.style.height = (H * scale) + 'px';
+  cv.width = Math.round(w * dpr); cv.height = Math.round(H * scale * dpr);
+  ctx.setTransform(scale * dpr, 0, 0, scale * dpr, 0, 0);
+}
+window.addEventListener('resize', resize);
+
+function drawScene(time) {
+  // 하늘
+  let g = ctx.createLinearGradient(0, 0, 0, GY);
+  g.addColorStop(0, '#9fd0f5'); g.addColorStop(1, '#dff0fb');
+  ctx.fillStyle = g; ctx.fillRect(0, 0, W, GY);
+  // 토양
+  g = ctx.createLinearGradient(0, GY, 0, H);
+  g.addColorStop(0, '#8a6440'); g.addColorStop(0.25, '#7a5636'); g.addColorStop(1, '#4e3522');
+  ctx.fillStyle = g; ctx.fillRect(0, GY, W, H - GY);
+  // 흙 알갱이 무늬
+  ctx.fillStyle = 'rgba(255,240,210,.07)';
+  for (let i = 0; i < 70; i++) { const x = (i * 97) % W, y = GY + 10 + ((i * 61) % (H - GY - 10)); ctx.fillRect(x, y, 2, 2); }
+  // 지면(풀)
+  ctx.fillStyle = '#5c9b3a'; ctx.fillRect(0, GY - 5, W, 8);
+  ctx.strokeStyle = '#4a842c'; ctx.lineWidth = 1.2;
+  for (let x = 3; x < W; x += 7) { ctx.beginPath(); ctx.moveTo(x, GY - 4); ctx.lineTo(x + 2, GY - 10 - (x % 5)); ctx.stroke(); }
+  // 구역 이름
+  ctx.font = '700 11px sans-serif'; ctx.textBaseline = 'top';
+  tag('하늘 (대기)', 6, 6, 'rgba(255,255,255,.75)', '#245');
+  tag('지면', 6, GY - 26, 'rgba(255,255,255,.75)', '#2d5a18');
+  tag('토양', 6, GY + 10, 'rgba(0,0,0,.35)', '#fff');
+
+  // 비 (빗물 → 용탈 방향 표시)
+  ctx.strokeStyle = 'rgba(70,130,200,.45)'; ctx.lineWidth = 1;
+  for (const r of rain) {
+    if (r.y < GY) { ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x - 2, r.y + 7); ctx.stroke(); }
+    else { ctx.strokeStyle = 'rgba(120,190,255,.18)'; ctx.beginPath(); ctx.moveTo(r.x, r.y); ctx.lineTo(r.x, r.y + 10); ctx.stroke(); ctx.strokeStyle = 'rgba(70,130,200,.45)'; }
+  }
+  ctx.fillStyle = 'rgba(200,230,255,.55)'; ctx.font = '10px sans-serif';
+  ctx.fillText('↓ 빗물', W - 46, H - 100); ctx.fillText('↓ 용탈', W - 46, H - 86);
+
+  // 하버-보슈 공장 (산업적 경로일 때)
+  if (st.mode === 'ind') drawFactory();
+
+  // 뿌리
+  ctx.strokeStyle = '#e8d6b0'; ctx.lineCap = 'round';
+  for (let i = 1; i < roots.length; i++) {
+    const n = roots[i], p = roots[n.p];
+    ctx.lineWidth = mainIdx.includes(i) ? 4 - i * 0.12 : 1.8;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(n.x, n.y); ctx.stroke();
+  }
+  // 뿌리혹
+  nodules.forEach(nd => {
+    if (st.mode === 'bio' && nd.glow > 0) {
+      ctx.fillStyle = `rgba(255,220,90,${0.45 * nd.glow})`;
+      ctx.beginPath(); ctx.arc(nd.x, nd.y, 14, 0, 7); ctx.fill();
+      nd.glow = Math.max(0, nd.glow - 0.02);
+    }
+    ctx.fillStyle = '#e59b8a'; ctx.strokeStyle = '#a65a4a'; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.ellipse(nd.x, nd.y, 8, 6.5, 0, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.fillStyle = '#c2705f'; ctx.beginPath(); ctx.arc(nd.x - 2, nd.y - 1, 1.3, 0, 7); ctx.arc(nd.x + 2.5, nd.y + 1.5, 1.2, 0, 7); ctx.fill();
+  });
+  if (st.mode === 'bio') {
+    const n0 = nodules[0];
+    ctx.font = '9px sans-serif'; ctx.fillStyle = '#ffe9e2'; ctx.textBaseline = 'middle';
+    ctx.fillText('뿌리혹', n0.x - 44, n0.y);
+  }
+
+  // 토양 입자 (음전하)
+  ctx.textBaseline = 'middle'; ctx.textAlign = 'center';
+  for (const c of clays) {
+    if (c.flash > 0) { ctx.fillStyle = `rgba(120,170,255,${0.5 * c.flash})`; ctx.beginPath(); ctx.arc(c.x, c.y, c.r + 9, 0, 7); ctx.fill(); c.flash -= 0.03; }
+    ctx.fillStyle = '#8a5a34'; ctx.strokeStyle = '#5a3a20'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(c.x, c.y, c.r + 3, c.r - 1, 0.3, 0, 7); ctx.fill(); ctx.stroke();
+    const n = SIGNS[st.charge];
+    ctx.fillStyle = '#ffd7a8'; ctx.font = '700 9px sans-serif';
+    for (let i = 0; i < n; i++) {
+      const a = i / n * Math.PI * 2 + 0.4, rr = n > 4 ? 8 : 6;
+      ctx.fillText('−', c.x + Math.cos(a) * rr, c.y + Math.sin(a) * (rr - 2));
+    }
+  }
+  ctx.textAlign = 'left';
+
+  // 줄기와 잎
+  ctx.strokeStyle = '#3f8a2a'; ctx.lineWidth = 5; ctx.lineCap = 'round';
+  ctx.beginPath(); ctx.moveTo(180, GY + 2); ctx.lineTo(180, 62); ctx.stroke();
+  for (const lf of leaves) {
+    ctx.save(); ctx.translate(lf.x, lf.y); ctx.rotate(lf.side * -0.25);
+    ctx.fillStyle = lf.flash > 0 ? `rgb(${110 + 80 * lf.flash},${190},${80})` : '#58b03c';
+    ctx.strokeStyle = '#2f6e1f'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.ellipse(0, 0, 34, 12, 0, 0, 7); ctx.fill(); ctx.stroke();
+    ctx.strokeStyle = 'rgba(40,100,30,.6)'; ctx.beginPath(); ctx.moveTo(-30, 0); ctx.lineTo(30, 0); ctx.stroke();
+    ctx.restore();
+    ctx.strokeStyle = '#3f8a2a'; ctx.lineWidth = 2.2;
+    ctx.beginPath(); ctx.moveTo(180, lf.sy); ctx.lineTo(lf.x - lf.side * 30, lf.y + 3); ctx.stroke();
+    if (lf.flash > 0) lf.flash -= 0.02;
+    // 잎 속 단백질 사슬
+    for (let i = 0; i < lf.chain; i++) {
+      const q = chainPos(lf, i);
+      ctx.fillStyle = ['#ffd166', '#ef476f', '#06d6a0', '#118ab2'][i % 4];
+      ctx.beginPath(); ctx.arc(q.x, q.y, 2.3, 0, 7); ctx.fill();
+    }
+  }
+  ctx.fillStyle = '#2f6e1f'; ctx.font = '700 10px sans-serif'; ctx.textBaseline = 'middle';
+  ctx.fillText('콩과 식물', 112, 60);
+}
+function tag(text, x, y, bg, fg) {
+  const w = ctx.measureText(text).width + 10;
+  ctx.fillStyle = bg; roundRect(x, y, w, 17, 5); ctx.fill();
+  ctx.fillStyle = fg; ctx.fillText(text, x + 5, y + 3);
+}
+function roundRect(x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function drawFactory() {
+  const x = 262, y = 92;
+  ctx.fillStyle = '#7d8590'; ctx.fillRect(x, y, 70, 30);
+  ctx.fillStyle = '#5e656e'; ctx.fillRect(x + 50, y - 26, 10, 26);
+  ctx.fillStyle = '#9aa1aa'; ctx.beginPath(); ctx.moveTo(x, y); ctx.lineTo(x + 16, y - 10); ctx.lineTo(x + 16, y); ctx.lineTo(x + 32, y - 10); ctx.lineTo(x + 32, y); ctx.closePath(); ctx.fill();
+  ctx.fillStyle = 'rgba(255,255,255,.7)'; ctx.beginPath(); ctx.arc(x + 57, y - 32, 6, 0, 7); ctx.arc(x + 65, y - 38, 7, 0, 7); ctx.fill();
+  ctx.fillStyle = '#fff'; ctx.font = '700 9px sans-serif'; ctx.textBaseline = 'middle';
+  ctx.fillText('하버-보슈', x + 6, y + 10); ctx.fillText('N₂+3H₂→2NH₃', x + 4, y + 22);
+  if (spreader) {
+    ctx.fillStyle = '#d1495b'; roundRect(spreader.x - 14, 46, 28, 12, 3); ctx.fill();
+    ctx.fillStyle = '#fff'; ctx.font = '700 8px sans-serif'; ctx.fillText('비료', spreader.x - 8, 52);
+  }
+}
+
+/* ---------------- 그리기: 작은 입자 ---------------- */
+const NCOL = '#4f7cff', TCOL = '#ff8c1a';
+function atom(x, y, r, fill, stroke, lw) {
+  ctx.fillStyle = fill; ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fill();
+  if (stroke) { ctx.strokeStyle = stroke; ctx.lineWidth = lw || 1; ctx.stroke(); }
+}
+function drawSmall(sp, x, y, isT, alpha) {
+  ctx.globalAlpha = alpha == null ? 1 : alpha;
+  const nc = isT ? TCOL : NCOL, ns = isT ? '#1b1b1b' : '#26408f', lw = isT ? 2 : 1;
+  const Hc = '#f4f4f4', Hs = '#888';
+  if (sp === 'N2') {
+    atom(x - 3.6, y, 4.6, NCOL, '#26408f', 1); atom(x + 3.6, y, 4.6, nc, ns, lw);
+    ctx.strokeStyle = '#fff'; ctx.lineWidth = 0.8;
+    for (const d of [-1.6, 0, 1.6]) { ctx.beginPath(); ctx.moveTo(x - 1.5, y + d); ctx.lineTo(x + 1.5, y + d); ctx.stroke(); }
+  } else if (sp === 'NH3') {
+    for (const [dx, dy] of [[-5.5, 3.5], [5.5, 3.5], [0, 6.5]]) atom(x + dx, y + dy, 2.6, Hc, Hs, .8);
+    atom(x, y, 4.8, nc, ns, lw);
+    atom(x - 1.6, y - 7.3, 1.1, '#ffe14d'); atom(x + 1.6, y - 7.3, 1.1, '#ffe14d');
+  } else if (sp === 'NH4' || sp === 'FERT') {
+    if (sp === 'FERT') { ctx.fillStyle = '#f7f4ec'; ctx.strokeStyle = '#999'; ctx.lineWidth = 1; ctx.fillRect(x - 5, y - 5, 10, 10); ctx.strokeRect(x - 5, y - 5, 10, 10); }
+    else {
+      for (const [dx, dy] of [[-5, -4.5], [5, -4.5], [-5, 4.5], [5, 4.5]]) atom(x + dx, y + dy, 2.6, Hc, Hs, .8);
+      atom(x, y, 4.8, nc, ns, lw);
+      ctx.fillStyle = '#ff3b3b'; ctx.font = '900 9px sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('+', x + 6, y - 9);
+    }
+    if (sp === 'FERT' && isT) { ctx.strokeStyle = TCOL; ctx.lineWidth = 2; ctx.strokeRect(x - 6, y - 6, 12, 12); }
+  } else if (sp === 'AA') {
+    ctx.fillStyle = '#7bd389'; ctx.strokeStyle = '#2f7a3c'; ctx.lineWidth = 1;
+    ctx.beginPath(); for (let i = 0; i < 6; i++) { const a = i * Math.PI / 3; ctx.lineTo(x + 4 + Math.cos(a) * 4, y + Math.sin(a) * 4); } ctx.closePath(); ctx.fill(); ctx.stroke();
+    atom(x - 4, y, 3.8, nc, ns, lw);
+  } else if (sp === 'PRO') {
+    for (let i = -2; i <= 2; i++) atom(x + i * 4.5, y + Math.sin(i) * 2, 2.4, ['#ffd166', '#ef476f', '#06d6a0', '#118ab2', '#ffd166'][i + 2]);
+    atom(x, y, 3.2, nc, ns, lw);
+  }
+  ctx.globalAlpha = 1;
+}
+const SPNAME = { N2: 'N₂', NH3: 'NH₃', NH4: 'NH₄⁺', FERT: 'NH₄⁺ 비료', AA: '아미노산', PRO: '단백질' };
+
+function drawParticles(time) {
+  // 장식용 N₂
+  for (const d of decos) drawSmall('N2', d.x, d.y, false, 0.75);
+  let T = null;
+  for (const p of parts) {
+    if (p.dead) continue;
+    if (p.id === trackedId) { T = p; continue; }
+    drawParticle(p, false);
+  }
+  if (T) {
+    const pulse = 0.5 + 0.5 * Math.sin(time / 220);
+    ctx.strokeStyle = `rgba(255,140,26,${0.35 + 0.4 * pulse})`; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(T.x, T.y, 12 + pulse * 3, 0, 7); ctx.stroke();
+    drawParticle(T, true);
+    // 이름표
+    const label = shortText(T);
+    ctx.font = '700 10px sans-serif';
+    const w = ctx.measureText(label).width + 10;
+    let lx = Math.min(W - w - 2, Math.max(2, T.x - w / 2)), ly = T.y - 34;
+    if (ly < 2) ly = T.y + 18;
+    ctx.strokeStyle = TCOL; ctx.lineWidth = 1;
+    ctx.beginPath(); ctx.moveTo(T.x, T.y + (ly > T.y ? 10 : -10)); ctx.lineTo(lx + w / 2, ly + (ly > T.y ? 0 : 16)); ctx.stroke();
+    ctx.fillStyle = 'rgba(30,30,30,.85)'; roundRect(lx, ly, w, 16, 5); ctx.fill();
+    ctx.strokeStyle = TCOL; ctx.lineWidth = 1.5; ctx.stroke();
+    ctx.fillStyle = '#fff'; ctx.textBaseline = 'middle'; ctx.fillText(label, lx + 5, ly + 8.5);
+  }
+}
+/* 추적 입자 위 짧은 설명 + 화면 아래 설명 띠 */
+const SHORT = {
+  n2: 'N₂ 하강 → 뿌리혹으로', fert: 'NH₄⁺ 비료가 토양에 녹는 중', fix: 'N₂ → NH₃ 질소 고정 중',
+  attract: '+전하 ↔ −전하 인력으로 끌려감', held: '음전하 토양 입자에 붙잡힘', volat: '전하 없는 NH₃ 기체 → 휘발',
+  leach: '못 붙잡혀 빗물에 용탈', uptake: '뿌리로 흡수되는 중', transport: '줄기 타고 잎으로 이동',
+  amino: '잎에서 아미노산이 되는 중', protein: '단백질에 결합 (펩타이드 결합)',
+};
+function shortText(p) {
+  const s = STAGE_OF[p.state];
+  if (s !== 'eq') return SHORT[s];
+  const ind = p.origin === 'ind';
+  if (!p.result) return ind ? 'NH₄⁺ ⇌ NH₃ + H⁺ 평형' : 'H⁺와 만나는 중';
+  if (p.result === 'NH4') return ind ? 'NH₄⁺ 그대로 유지' : 'H⁺와 배위 결합 → NH₄⁺';
+  return ind ? 'H⁺를 내놓음 → NH₃' : 'H⁺ 못 붙음 → NH₃ 유지';
+}
+const CAP = {
+  n2: () => 'N≡N 삼중 결합을 가진 무극성 N₂가 토양 속 공기를 따라 뿌리혹으로 내려갑니다.',
+  fert: () => '하버-보슈법(N₂+3H₂→2NH₃)으로 만든 비료가 녹아 NH₄⁺가 토양 전체에 한꺼번에 퍼집니다.',
+  fix: () => '질소 고정 효소가 N₂의 삼중 결합을 끊어 NH₃(삼각뿔형, 결합각 약 107°)를 만듭니다.',
+  eq: () => { const f = fracNH4(st.ph); return `NH₃의 비공유 전자쌍이 H⁺와 배위 결합하면 NH₄⁺. pH ${st.ph.toFixed(1)}에서 NH₄⁺ ${pct(f)} : NH₃ ${pct(1 - f)}로 갈립니다.`; },
+  attract: () => 'NH₄⁺(정사면체, 109.5°, +1)가 음전하 토양 입자에 정전기적 인력으로 끌려갑니다.',
+  held: () => '음전하 자리에 붙잡혀 빗물에 씻겨 나가지 않고 뿌리 근처에 보관됩니다.',
+  volat: () => 'NH₃는 전하가 없어 토양 입자에 붙잡히지 않고, 기체라서 대기로 빠져나갑니다.',
+  leach: () => '음전하 자리가 부족해 붙잡히지 못한 NH₄⁺가 빗물과 함께 아래로 빠져나갑니다.',
+  uptake: () => '뿌리 세포막의 암모늄 수송 단백질을 통해 NH₄⁺가 뿌리 안으로 흡수됩니다.',
+  transport: () => '흡수된 질소가 관다발을 따라 줄기를 타고 잎으로 올라갑니다.',
+  amino: () => '질소가 글루타민을 거쳐 아미노산의 아미노기(–NH₂)가 됩니다.',
+  protein: () => '아미노산이 펩타이드 결합(–CO–NH–)으로 이어져 단백질이 됩니다. 여행 끝!',
+};
+function wrapText(text, maxW) {
+  const out = []; let line = '';
+  for (const ch of text) {
+    if (line && ctx.measureText(line + ch).width > maxW) { out.push(line); line = ch === ' ' ? '' : ch; }
+    else line += ch;
+  }
+  if (line) out.push(line);
+  return out;
+}
+function drawCaption(T) {
+  if (!T) return;
+  const s = STAGE_OF[T.state];
+  ctx.font = '11.5px sans-serif';
+  const lines = wrapText(CAP[s](T), W - 26).slice(0, 3);
+  const h = 26 + lines.length * 15, y = H - h - 6;
+  ctx.fillStyle = 'rgba(20,20,22,.8)'; roundRect(6, y, W - 12, h, 8); ctx.fill();
+  ctx.strokeStyle = TCOL; ctx.lineWidth = 1.5; ctx.stroke();
+  ctx.textBaseline = 'top';
+  ctx.fillStyle = TCOL; ctx.font = '700 11.5px sans-serif';
+  ctx.fillText('추적 중인 N · ' + TEXT[s](T)[0], 13, y + 7);
+  ctx.fillStyle = '#fff'; ctx.font = '11.5px sans-serif';
+  lines.forEach((l, i) => ctx.fillText(l, 13, y + 24 + i * 15));
+}
+function drawParticle(p, isT) {
+  // 정전기적 인력 선
+  if (p.state === 'attract') {
+    ctx.setLineDash([3, 3]); ctx.strokeStyle = 'rgba(140,190,255,.9)'; ctx.lineWidth = 1.2;
+    ctx.beginPath(); ctx.moveTo(p.x, p.y); ctx.lineTo(p.clay.x, p.clay.y); ctx.stroke(); ctx.setLineDash([]);
+  }
+  // H⁺ 이온
+  if (p.state === 'eq' && p.hx != null) {
+    const k = p.t / p.dur;
+    if (p.origin === 'bio') {
+      let hx = p.hx, hy = p.hy;
+      if (k < 0.55) { const f = k / 0.55; hx = p.hx + (p.x - p.hx) * f; hy = p.hy + (p.y - p.hy) * f * 0.85; }
+      else if (p.result === 'NH3') { const f = (k - 0.55) / 0.45; hx = p.x + (p.hx - p.x) * f * 1.3; hy = p.y + (p.hy - p.y) * f * 1.3; }
+      else hx = null;
+      if (hx != null) hitIon(hx, hy);
+    } else if (p.hLeave) {
+      const f = (k - 0.55) / 0.45; hitIon(p.hx + 26 * f, p.hy - 20 * f);
+    }
+  }
+  let alpha = 1;
+  if (p.state === 'volat' && p.y < 40) alpha = Math.max(0.15, p.y / 40);
+  if (p.state === 'leach' && p.y > H - 40) alpha = Math.max(0.15, (H - p.y) / 40);
+  if (p.state === 'fix') {                       // 모양 변화: N₂ → NH₃
+    const k = Math.min(1, p.t / p.dur);
+    ctx.save(); ctx.translate(p.x, p.y);
+    const s = k < 0.55 ? 1 - k * 0.8 : 0.56 + (k - 0.55) * 0.98;
+    ctx.scale(s, s); ctx.rotate(k * Math.PI * 2);
+    drawSmall(p.sp, 0, 0, isT, 1); ctx.restore();
+    return;
+  }
+  drawSmall(p.sp, p.x, p.y, isT, alpha);
+}
+function hitIon(x, y) {
+  atom(x, y, 3, '#ff4d4d', '#a11', 0.8);
+  ctx.fillStyle = '#fff'; ctx.font = '700 6px sans-serif'; ctx.textBaseline = 'middle'; ctx.fillText('+', x - 1.8, y + 0.3);
+  ctx.fillStyle = '#ff4d4d'; ctx.font = '700 8px sans-serif'; ctx.fillText('H⁺', x + 4, y - 4);
+}
+
+/* ---------------- 그리기: 큰 분자 구조 ---------------- */
+const mcv = document.getElementById('mol'), mctx = mcv.getContext('2d');
+(function hiDPI() {
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  mcv.width = 160 * dpr; mcv.height = 160 * dpr; mctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+})();
+const rad = d => d * Math.PI / 180;
+function pyramid(bondAngle, n) {        // 결합각으로부터 C3 축과 이루는 각 계산
+  const c2 = ((2 * Math.cos(rad(bondAngle))) + 1) / 3, ca = Math.sqrt(c2), sa = Math.sqrt(1 - c2);
+  const out = [];
+  for (let i = 0; i < n; i++) { const f = i * 2 * Math.PI / 3; out.push([sa * Math.cos(f), -ca, sa * Math.sin(f)]); }
+  return out;
+}
+const NH3_DIRS = pyramid(107, 3), NH4_DIRS = pyramid(109.47, 3).concat([[0, 1, 0]]);
+function proj(v, ang) {
+  const c = Math.cos(ang), s = Math.sin(ang);
+  const x = v[0] * c + v[2] * s, z = -v[0] * s + v[2] * c, y = v[1];
+  const ct = Math.cos(0.32), stt = Math.sin(0.32);
+  return { x: 80 + x * 46, y: 76 - (y * ct - z * stt) * 46, z: y * stt + z * ct };
+}
+function ball(c, x, y, r, col, label, lc) {
+  const g = c.createRadialGradient(x - r * .35, y - r * .35, r * .15, x, y, r);
+  g.addColorStop(0, '#fff'); g.addColorStop(0.35, col); g.addColorStop(1, shade(col));
+  c.fillStyle = g; c.beginPath(); c.arc(x, y, r, 0, 7); c.fill();
+  c.strokeStyle = 'rgba(0,0,0,.35)'; c.lineWidth = 1; c.stroke();
+  if (label) { c.fillStyle = lc || '#111'; c.font = `700 ${Math.round(r * 0.9)}px sans-serif`; c.textAlign = 'center'; c.textBaseline = 'middle'; c.fillText(label, x, y + 1); c.textAlign = 'left'; }
+}
+function shade(hex) { const n = parseInt(hex.slice(1), 16); const f = v => Math.round(v * .55); return `rgb(${f(n >> 16)},${f((n >> 8) & 255)},${f(n & 255)})`; }
+function lonePair(c, o, d, ang) {
+  const e = proj([d[0] * 0.95, d[1] * 0.95, d[2] * 0.95], ang), cx = 80 + (e.x - 80), cy = e.y;
+  const ox = o.x, oy = o.y, a = Math.atan2(cy - oy, cx - ox), L = Math.hypot(cx - ox, cy - oy);
+  c.save(); c.translate(ox, oy); c.rotate(a);
+  c.fillStyle = 'rgba(255,215,64,.35)'; c.strokeStyle = 'rgba(200,150,0,.6)'; c.lineWidth = 1;
+  c.beginPath(); c.ellipse(L * 0.6, 0, L * 0.55, 11, 0, 0, 7); c.fill(); c.stroke();
+  c.fillStyle = '#7a5b00'; c.beginPath(); c.arc(L * 0.75, -4, 2.2, 0, 7); c.arc(L * 0.75, 4, 2.2, 0, 7); c.fill();
+  c.restore();
+}
+function drawMol(sp, ang) {
+  const c = mctx;
+  c.clearRect(0, 0, 160, 160);
+  const dark = matchMedia('(prefers-color-scheme: dark)').matches;
+  c.fillStyle = dark ? '#ddd' : '#333'; c.font = '700 11px sans-serif'; c.textBaseline = 'alphabetic';
+  if (sp === 'N2') {
+    const a = proj([-0.55, 0, 0], ang), b = proj([0.55, 0, 0], ang);
+    lonePair(c, a, [-1.25, 0, 0], ang); lonePair(c, b, [1.25, 0, 0], ang);
+    const dx = b.x - a.x, dy = b.y - a.y, L = Math.hypot(dx, dy) || 1, nx = -dy / L * 4.5, ny = dx / L * 4.5;
+    c.strokeStyle = dark ? '#ccc' : '#444'; c.lineWidth = 2.2;
+    for (const k of [-1, 0, 1]) { c.beginPath(); c.moveTo(a.x + nx * k, a.y + ny * k); c.lineTo(b.x + nx * k, b.y + ny * k); c.stroke(); }
+    const [f, s] = a.z < b.z ? [a, b] : [b, a];
+    ball(c, f.x, f.y, 15, '#4f7cff', 'N', '#fff'); ball(c, s.x, s.y, 15, '#4f7cff', 'N', '#fff');
+    c.fillStyle = dark ? '#ddd' : '#333'; c.fillText('N≡N  180°', 48, 150);
+  } else if (sp === 'NH3' || sp === 'NH4' || sp === 'FERT') {
+    const is4 = sp !== 'NH3', dirs = is4 ? NH4_DIRS : NH3_DIRS;
+    const N = proj([0, is4 ? 0 : 0.2, 0], ang);
+    const items = dirs.map(d => {
+      const v = [d[0] * 1.05, d[1] * 1.05 + (is4 ? 0 : 0.2), d[2] * 1.05];
+      const P = proj(v, ang); return { P, z: P.z };
+    });
+    if (!is4) lonePair(c, N, [0, 1.25, 0], ang);
+    const draw = it => {
+      c.strokeStyle = dark ? '#ccc' : '#555'; c.lineWidth = 4;
+      c.beginPath(); c.moveTo(N.x, N.y); c.lineTo(it.P.x, it.P.y); c.stroke();
+      ball(c, it.P.x, it.P.y, 10, '#f0f0f0', 'H', '#333');
+    };
+    items.filter(i => i.z < N.z).forEach(draw);
+    ball(c, N.x, N.y, 16, '#4f7cff', 'N', '#fff');
+    items.filter(i => i.z >= N.z).forEach(draw);
+    c.fillStyle = dark ? '#ddd' : '#333'; c.font = '700 11px sans-serif';
+    if (is4) {
+      c.font = '300 34px sans-serif'; c.fillText('[', 6, 92); c.fillText(']', 140, 92);
+      c.fillStyle = '#e03131'; c.font = '900 16px sans-serif'; c.fillText('+', 140, 30);
+      c.fillStyle = dark ? '#ddd' : '#333'; c.font = '700 11px sans-serif'; c.fillText('∠H–N–H = 109.5°', 34, 152);
+    } else c.fillText('∠H–N–H ≈ 107°', 38, 152);
+  } else if (sp === 'AA') {
+    drawFormula(c, dark, [
+      ['H', 20, 50], ['N', 44, 80, 1], ['H', 20, 110], ['C', 80, 80], ['H', 80, 46], ['R', 80, 116],
+      ['C', 116, 80], ['O', 116, 46], ['O', 146, 96]
+    ], [[0, 1], [1, 2], [1, 3], [3, 4], [3, 5], [3, 6], [6, 7, 2], [6, 8]]);
+    c.fillStyle = dark ? '#ddd' : '#333'; c.font = '700 10px sans-serif'; c.fillText('아미노기       카복실기', 18, 150);
+    c.fillText('–OH', 132, 112);
+  } else if (sp === 'PRO') {
+    drawFormula(c, dark, [
+      ['C', 14, 90], ['C', 40, 72], ['O', 40, 42], ['N', 66, 90, 1], ['H', 66, 120], ['C', 92, 72], ['C', 118, 90], ['O', 118, 120], ['N', 144, 72]
+    ], [[0, 1], [1, 2, 2], [1, 3], [3, 4], [3, 5], [5, 6], [6, 7, 2], [6, 8]]);
+    c.strokeStyle = '#e8740c'; c.setLineDash([3, 3]); c.lineWidth = 1.5; c.strokeRect(30, 34, 46, 98); c.setLineDash([]);
+    c.fillStyle = dark ? '#ddd' : '#333'; c.font = '700 10px sans-serif'; c.fillText('펩타이드 결합 –CO–NH–', 26, 150);
+  }
+}
+function drawFormula(c, dark, atoms, bonds) {
+  c.strokeStyle = dark ? '#ccc' : '#444'; c.lineWidth = 2;
+  for (const [a, b, o] of bonds) {
+    const A = atoms[a], B = atoms[b];
+    if (o === 2) {
+      const dx = B[1] - A[1], dy = B[2] - A[2], L = Math.hypot(dx, dy), nx = -dy / L * 2.5, ny = dx / L * 2.5;
+      for (const k of [-1, 1]) { c.beginPath(); c.moveTo(A[1] + nx * k, A[2] + ny * k); c.lineTo(B[1] + nx * k, B[2] + ny * k); c.stroke(); }
+    } else { c.beginPath(); c.moveTo(A[1], A[2]); c.lineTo(B[1], B[2]); c.stroke(); }
+  }
+  for (const [s, x, y, hl] of atoms) {
+    const col = hl ? '#ff8c1a' : s === 'N' ? '#4f7cff' : s === 'O' ? '#ff6b6b' : s === 'C' ? '#666666' : s === 'R' ? '#7bd389' : '#f0f0f0';
+    ball(c, x, y, s === 'H' ? 8 : 11, col, s, s === 'H' || s === 'R' ? '#222' : '#fff');
+    if (hl) { c.strokeStyle = '#1b1b1b'; c.lineWidth = 2; c.beginPath(); c.arc(x, y, 12, 0, 7); c.stroke(); c.strokeStyle = dark ? '#ccc' : '#444'; c.lineWidth = 2; }
+  }
+}
+const MOLCAP = {
+  N2: '<b>N₂</b> · 직선형 · N≡N 삼중 결합<br>각 N에 비공유 전자쌍 1개 · 무극성 · 전하 0',
+  NH3: '<b>NH₃</b> · 삼각뿔형 · 결합각 약 107°<br>비공유 전자쌍 1개(노란색) · 극성 · 전하 0',
+  NH4: '<b>NH₄⁺</b> · 정사면체 · 결합각 109.5°<br>네 N–H 결합 모두 동등 · 전하 +1',
+  FERT: '<b>비료 속 NH₄⁺</b> · 정사면체 · 109.5°<br>네 N–H 결합 모두 동등 · 전하 +1',
+  AA: '<b>아미노산</b> (일반 구조)<br>주황색 = 추적 중인 N (아미노기)',
+  PRO: '<b>단백질(폴리펩타이드)</b><br>추적 중인 N이 펩타이드 결합 속에 들어감',
+};
+
+/* ---------------- 설명 패널 ---------------- */
+const STEP = { n2: 0, fert: 0, fix: 1, eq: 2, attract: 3, held: 3, volat: 3, leach: 3, uptake: 4, transport: 4, amino: 5, protein: 5 };
+const STAGE_OF = { fall_n2: 'n2', fert_fall: 'fert', dissolve: 'fert', fix: 'fix', release: 'eq', eq: 'eq', seek: 'attract',
+  attract: 'attract', held: 'held', volat: 'volat', leach: 'leach', uptake: 'uptake', transport: 'transport', amino: 'amino', protein: 'protein' };
+const pct = v => (v >= 0.1 ? (v * 100).toFixed(1) : (v * 100).toPrecision(2)) + '%';
+const TEXT = {
+  n2: () => ['① 대기 속 N₂가 토양으로', `
+    <p>공기의 약 78%는 질소 분자 <b>N₂</b>입니다. 두 N 원자는 <b>삼중 결합</b>(σ 결합 1개 + π 결합 2개)으로 묶여 있고, 결합 에너지가 약 945 kJ/mol로 매우 커서 대부분의 생물은 N₂를 직접 쓰지 못합니다.</p>
+    <p>N₂는 같은 원자 두 개로 된 <b>직선형·무극성 분자</b>이고, 각 N에는 <b>비공유 전자쌍이 1개</b>씩 있습니다.</p>
+    <p>질소 고정의 대상은 바로 이 <b>N₂</b>입니다(산소가 아닙니다). 이 N₂가 토양 속 공기를 따라 뿌리혹으로 들어갑니다.</p>`],
+  fert: () => ['① 하버-보슈법 비료가 지표에 뿌려짐', `
+    <p>공장에서는 <b>하버-보슈법</b>으로 공기의 <b>N₂</b>를 고정합니다.<br><span class="eq">N₂ + 3H₂ ⇌ 2NH₃</span> (철 촉매, 약 400~500 ℃, 150~300기압)</p>
+    <p>이 NH₃로 만든 암모늄 비료(예: 황산암모늄)를 밭에 뿌리면, 빗물·토양수에 녹아 <b>NH₄⁺</b>가 토양 전체에 <b>한꺼번에</b> 공급됩니다. 뿌리혹에서 조금씩 만들어지는 생물학적 고정과 크게 다른 점입니다.</p>
+    <p>NH₄⁺는 <b>정사면체</b> 구조의 <b>양이온</b>입니다. 하지만 토양 pH에 따라 일부는 H⁺를 내놓고 NH₃로 바뀝니다(다음 단계).</p>`],
+  fix: () => ['② 뿌리혹: 질소 고정 (N₂ → NH₃)', `
+    <p>뿌리혹 속 뿌리혹박테리아의 <b>질소 고정 효소(나이트로제네이스)</b>가 N₂의 삼중 결합을 끊고 수소를 붙입니다.<br>
+    <span class="eq">N₂ + 8H⁺ + 8e⁻ + 16ATP → 2NH₃ + H₂ + 16ADP + 16Pi</span></p>
+    <p>효소가 직접 만드는 물질은 <b>NH₃(암모니아)</b>입니다. NH₄⁺는 그 다음 단계에서 생깁니다.</p>
+    <p><b>분자 모양:</b> NH₃의 N 주위에는 전자쌍이 4개(공유 전자쌍 3 + 비공유 전자쌍 1) 있어 <b>전자쌍 반발</b>로 사면체 방향으로 퍼집니다. 그런데 비공유 전자쌍이 공유 전자쌍을 더 세게 밀어내므로 H–N–H 결합각이 109.5°보다 작은 <b>약 107°</b>가 되고, 원자만 보면 <b>삼각뿔형</b>입니다.</p>
+    <p>모양이 비대칭이라 결합의 극성이 상쇄되지 않아 NH₃는 <b>극성 분자</b>이지만 <b>전하는 0</b>입니다.</p>`],
+  eq: (p) => {
+    const f = fracNH4(st.ph);
+    const res = p && p.result ? (p.result === 'NH4'
+      ? '<p>➡ 이 입자는 <b style="color:var(--nh4)">NH₄⁺</b>가 되었습니다(양전하).</p>'
+      : '<p>➡ 이 입자는 <b style="color:var(--nh3)">NH₃</b>로 남았습니다(전하 없음).</p>') : '<p>➡ 이 입자가 어느 쪽이 될지 결정되는 중…</p>';
+    return ['③ NH₃ + H⁺ ⇌ NH₄⁺ (산-염기 평형)', `
+    <p>NH₃의 N에 있는 <b>비공유 전자쌍</b>이 H⁺에게 전자쌍을 내주어 <b>배위 결합</b>을 만들면 <b>NH₄⁺</b>가 됩니다.</p>
+    <p><span class="eq">NH₄⁺ ⇌ NH₃ + H⁺ &nbsp; pKa = 9.25</span></p>
+    <p>현재 토양 pH <b>${st.ph.toFixed(1)}</b>에서<br>NH₄⁺ 비율 = 1/(1+10<sup>(${st.ph.toFixed(1)}−9.25)</sup>) = <b>${pct(f)}</b>, NH₃ 비율 = <b>${pct(1 - f)}</b>.<br>
+    pH가 높을수록(H⁺가 적을수록) 평형이 NH₃ 쪽으로 이동합니다. 입자들은 이 비율대로 두 갈래로 나뉩니다.</p>${res}`];
+  },
+  attract: () => ['④-가 NH₄⁺가 음전하 토양 입자에 끌려감', `
+    <p>NH₄⁺는 N 주위 전자쌍 4개가 모두 공유 전자쌍이라 <b>정사면체</b>, 결합각 <b>109.5°</b>입니다. 비공유 전자쌍이 사라졌으므로 NH₃(107°)보다 결합각이 커졌습니다.</p>
+    <p>배위 결합으로 생긴 N–H도 생기고 나면 다른 세 결합과 구별할 수 없어, <b>네 N–H 결합은 모두 동등</b>합니다. +1 전하도 이온 전체에 퍼져 있습니다.</p>
+    <p>점토·부식 같은 토양 입자 표면은 <b>음전하</b>를 띱니다. 양전하인 NH₄⁺는 <b>정전기적 인력</b>(F ∝ q₁q₂/r²) 때문에 끌려가며, 가까워질수록 힘이 커져 점점 빨리 다가갑니다(점선).</p>`],
+  held: () => ['④-가 토양 입자에 붙잡힌 NH₄⁺', `
+    <p>NH₄⁺가 음전하 자리에 붙잡혀(<b>양이온 흡착</b>) 빗물이 내려가도 쉽게 씻겨 나가지 않습니다. 토양 음전하가 많을수록(양이온 교환 용량이 클수록) 더 많은 NH₄⁺를 붙잡아 둘 수 있습니다.</p>
+    <p>이렇게 보관된 NH₄⁺는 뿌리 근처에서 다른 양이온과 자리를 바꾸며(양이온 교환) 뿌리로 흡수될 준비를 합니다.</p>`],
+  volat: () => ['④-나 NH₃가 대기로 휘발', `
+    <p><b>NH₃는 전하가 없는 분자</b>이므로 음전하 토양 입자가 정전기적으로 붙잡을 수 없습니다.</p>
+    <p>분자량이 17로 작고 끓는점이 −33 ℃라서 상온에서 <b>기체</b>입니다. 그래서 토양 속 빈 공간을 따라 위로 올라가 <b>대기로 빠져나갑니다(휘발)</b>. 식물이 쓸 수 있던 질소를 잃는 것입니다.</p>
+    <p>pH를 올리면 NH₃ 비율이 커져 이렇게 날아가는 입자가 늘어납니다. <b>같은 질소라도 H⁺ 하나가 붙었는지에 따라(구조·전하) 운명이 달라집니다.</b></p>`],
+  leach: () => ['④-다 NH₄⁺가 빗물에 씻겨 용탈', `
+    <p>이 입자는 양전하를 띤 NH₄⁺이지만, 근처 토양의 <b>음전하 자리가 부족</b>해 붙잡히지 못했습니다.</p>
+    <p>붙잡히지 못한 이온은 물에 녹은 채로 빗물을 따라 아래로 내려가 뿌리가 닿지 않는 깊이로 빠져나갑니다(<b>용탈</b>). 지하수 오염의 원인이 되기도 합니다.</p>
+    <p>토양 음전하를 “많음”으로 바꾸면 용탈이 줄어드는 것을 확인해 보세요.</p>`],
+  uptake: () => ['⑤ 뿌리로 흡수', `
+    <p>토양 입자에 붙어 있던 NH₄⁺가 뿌리 표면으로 옮겨가 뿌리 세포막의 <b>암모늄 수송 단백질</b>을 통해 흡수됩니다.</p>
+    <p>NH₄⁺는 전하를 띤 이온이라 세포막(지질 이중층)을 스스로 통과하지 못하고, 수송 단백질의 통로를 이용해야 합니다.</p>`],
+  transport: () => ['⑤ 줄기를 타고 잎으로', `
+    <p>흡수된 질소가 <b>관다발</b>을 따라 줄기를 타고 잎으로 올라갑니다.</p>
+    <p>(실제로는 많은 양이 뿌리에서 먼저 아미노산으로 바뀐 뒤 이동합니다. 아래 ‘단순화한 부분’ 참고)</p>`],
+  amino: () => ['⑥ 잎에서 아미노산이 됨', `
+    <p>NH₄⁺의 질소는 글루탐산에 붙어 <b>글루타민</b>이 되고(글루타민 합성 효소), 다시 <b>아미노기 전이</b>를 거쳐 여러 아미노산의 <b>아미노기(–NH₂)</b>가 됩니다.</p>
+    <p>아미노산은 한 탄소에 <b>아미노기(–NH₂)</b>, <b>카복실기(–COOH)</b>, 수소, 곁사슬(R)이 붙은 구조입니다. 아미노기의 N도 공유 전자쌍 3개와 비공유 전자쌍 1개를 가집니다.</p>`],
+  protein: () => ['⑥ 단백질로 조립', `
+    <p>리보솜에서 한 아미노산의 카복실기와 다음 아미노산의 아미노기가 물 한 분자를 내놓으며(<b>탈수 축합</b>) <b>펩타이드 결합 –CO–NH–</b>을 만듭니다.</p>
+    <p>추적하던 질소 원자는 이제 단백질 사슬의 펩타이드 결합 속 N이 되었습니다. 대기의 N₂에서 시작한 여행이 끝났습니다. ✓</p>`],
+};
+const $ = id => document.getElementById(id);
+let shownStage = null, shownSp = null, shownRes = null, noteTimer = 0;
+function showNote(msg) { $('note').textContent = msg; noteTimer = 4.5; }
+function refreshPanel(force) {
+  const p = tracked();
+  if (!p) return;
+  const stage = STAGE_OF[p.state];
+  if (force || stage !== shownStage || (stage === 'eq' && p.result !== shownRes)) {
+    shownStage = stage; shownRes = p.result;
+    const [title, html] = TEXT[stage](p);
+    $('stageTitle').textContent = title; $('stageText').innerHTML = html;
+    [...$('steps').children].forEach((s, i) => s.classList.toggle('on', i === STEP[stage]));
+  }
+  if (p.sp !== shownSp) { shownSp = p.sp; $('molcap').innerHTML = MOLCAP[p.sp]; }
+}
+
+function refreshRatio() {
+  const f = fracNH4(st.ph);
+  $('phv').textContent = st.ph.toFixed(1);
+  $('ra').style.width = (f * 100) + '%'; $('rb').style.width = ((1 - f) * 100) + '%';
+  $('ra').textContent = f > 0.24 ? 'NH₄⁺ ' + pct(f) : '';
+  $('rb').textContent = 1 - f > 0.24 ? 'NH₃ ' + pct(1 - f) : '';
+  $('rf').innerHTML = `pH ${st.ph.toFixed(1)}: NH₄⁺ = 1/(1+10<sup>(pH−9.25)</sup>) = <b>${pct(f)}</b> · NH₃ = <b>${pct(1 - f)}</b>`;
+}
+function refreshStats() {
+  const { P, V, L } = st.counts, tot = P + V + L;
+  $('sP').textContent = P; $('sV').textContent = V; $('sL').textContent = L;
+  const r = n => tot ? Math.round(n / tot * 100) + '%' : '–';
+  $('pP').textContent = r(P); $('pV').textContent = r(V); $('pL').textContent = r(L);
+  const { a, b } = st.split, n = a + b;
+  $('split').innerHTML = n
+    ? `갈림 결과(현재 조건): NH₄⁺ ${a}개 · NH₃ ${b}개 → 실제 NH₃ ${(b / n * 100).toFixed(1)}% / 계산값 ${pct(1 - fracNH4(st.ph))}`
+    : '갈림 결과: 아직 갈림 지점에 도달한 입자가 없습니다.';
+}
+function resetCounts() { st.counts = { P: 0, V: 0, L: 0 }; st.split = { a: 0, b: 0 }; refreshStats(); }
+
+/* ---------------- 조작 ---------------- */
+function seg(id, cb) {
+  $(id).addEventListener('click', e => {
+    const b = e.target.closest('button'); if (!b) return;
+    [...$(id).children].forEach(x => x.classList.toggle('on', x === b)); cb(b.dataset.v);
+  });
+}
+seg('speed', v => st.speed = +v);
+seg('mode', v => {
+  st.mode = v; resetCounts(); spawnT = 0; batchT = 0.6;
+  // 경로를 바꾸면 아직 출발 단계인 입자는 정리
+  parts.forEach(p => { if (!p.manual && (p.state === 'fall_n2' || p.state === 'fert_fall')) p.dead = true; });
+  if (st.manual) { const m = tracked(); st.manualIdx = Math.min(st.manualIdx, manualStages().length - 1); if (m) setupStage(m, curManualKey()); refreshStepLbl(); refreshPanel(true); }
+  else if (!tracked()) trackedId = null;
+});
+seg('charge', v => { st.charge = +v; resetCounts(); });
+$('ph').addEventListener('input', e => { st.ph = +e.target.value; refreshRatio(); if (shownStage === 'eq') refreshPanel(true); });
+$('ph').addEventListener('change', resetCounts);
+$('play').addEventListener('click', () => {
+  st.playing = !st.playing; $('play').textContent = st.playing ? '⏸ 일시정지' : '▶ 재생';
+});
+$('retrack').addEventListener('click', () => { if (st.manual) exitManual(); pickTracked(trackedId); refreshPanel(true); $('note').textContent = ''; });
+
+/* ---------------- 단계별 보기 (수동) ---------------- */
+const MST_BIO = [['n2', '① 대기의 N₂가 뿌리혹으로'], ['fix', '② 질소 고정 N₂ → NH₃'], ['eq', '③ H⁺와 결합 → NH₄⁺'],
+  ['attract', '④-가 음전하 토양 입자로 끌림'], ['held', '④-가 토양 입자에 붙잡힘'], ['volat', '④-나 (다른 갈래) NH₃ 휘발'],
+  ['leach', '④-다 (다른 갈래) NH₄⁺ 용탈'], ['uptake', '⑤ 뿌리로 흡수'], ['transport', '⑤ 줄기 타고 잎으로'],
+  ['amino', '⑥ 아미노산이 됨'], ['protein', '⑥ 단백질로 조립']];
+const MST_IND = [['fert', '① 하버-보슈 비료 살포'], ['eq', '③ NH₄⁺ ⇌ NH₃ + H⁺ 평형']].concat(MST_BIO.slice(3));
+const manualStages = () => st.mode === 'ind' ? MST_IND : MST_BIO;
+const curManualKey = () => manualStages()[st.manualIdx][0];
+function setupStage(p, key) {
+  const nd = nodules[1], clay = clays[1], leaf = leaves[1];
+  Object.assign(p, { dead: false, result: null, forceResult: null, hx: null, path: null, sp: 'NH4', origin: 'bio', nd });
+  const slotPos = s => { p.slot = s; p.x = clay.x + Math.cos(s) * (clay.r + 6); p.y = clay.y + Math.sin(s) * (clay.r + 6); };
+  switch (key) {
+    case 'n2': Object.assign(p, { sp: 'N2', x: nd.x - 70, y: 30 }); setState(p, 'fall_n2'); break;
+    case 'fert': Object.assign(p, { sp: 'FERT', origin: 'ind', x: 150, y: 50, tx: 150, ty: GY + 80 }); setState(p, 'fert_fall'); break;
+    case 'fix': Object.assign(p, { sp: 'N2', x: nd.x, y: nd.y }); setState(p, 'fix', 2.4); break;
+    case 'eq':
+      Object.assign(p, { sp: st.mode === 'ind' ? 'NH4' : 'NH3', origin: st.mode, x: nd.x + 24, y: nd.y + 16 });
+      startEq(p); p.forceResult = 'NH4'; break;
+    case 'attract': Object.assign(p, { clay, x: clay.x + 80, y: clay.y - 40 }); p.slot = Math.atan2(p.y - clay.y, p.x - clay.x); setState(p, 'attract'); break;
+    case 'held': p.clay = clay; slotPos(-0.45); setState(p, 'held', 3.2); break;
+    case 'volat': Object.assign(p, { sp: 'NH3', x: nd.x + 24, y: nd.y + 16 }); setState(p, 'volat'); break;
+    case 'leach': Object.assign(p, { x: 240, y: 270 }); setState(p, 'leach'); break;
+    case 'uptake': slotPos(-0.45); buildUptakePath(p); setState(p, 'uptake'); break;
+    case 'transport': {
+      slotPos(-0.45); buildUptakePath(p); p.pi = p.baseIdx;
+      const b = p.path[p.baseIdx - 1]; p.x = b.x; p.y = b.y; setState(p, 'transport'); break;
+    }
+    case 'amino': Object.assign(p, { leaf, x: leaf.x, y: leaf.y }); setState(p, 'amino', 2.6); break;
+    case 'protein': Object.assign(p, { leaf, sp: 'AA', x: leaf.x, y: leaf.y }); setState(p, 'protein', 2.4); break;
+  }
+}
+function refreshStepLbl() {
+  const list = manualStages();
+  $('stepLbl').innerHTML = st.manual
+    ? `<b>단계 ${st.manualIdx + 1} / ${list.length}</b><br>${list[st.manualIdx][1]}`
+    : '자동 흐름 중<br>단계 버튼으로 하나씩 볼 수 있어요';
+  $('autoS').style.display = st.manual ? '' : 'none';
+}
+function goStage(idx) {
+  const list = manualStages();
+  st.manualIdx = Math.max(0, Math.min(list.length - 1, idx));
+  let m = st.manual ? tracked() : null;
+  if (!m) {
+    m = { id: nextId++, manual: true, t: 0, ph: 0 };
+    parts.push(m); trackedId = m.id; st.manual = true;
+    st.playing = true; $('play').textContent = '⏸ 일시정지';
+  }
+  setupStage(m, curManualKey());
+  $('note').textContent = '단계별 보기: 이 단계의 움직임을 반복해서 보여 줍니다. 다른 입자는 잠시 멈춰 있어요.';
+  noteTimer = 0;
+  refreshStepLbl(); refreshPanel(true);
+}
+function exitManual() {
+  parts.forEach(p => { if (p.manual) p.dead = true; });
+  parts = parts.filter(p => !p.dead);
+  st.manual = false; trackedId = null; $('note').textContent = '';
+  refreshStepLbl();
+}
+function curAutoIdx() {
+  const p = tracked(), list = manualStages();
+  if (!p) return 0;
+  const k = STAGE_OF[p.state], i = list.findIndex(s => s[0] === k);
+  return i < 0 ? 0 : i;
+}
+$('nextS').addEventListener('click', () => goStage(st.manual ? st.manualIdx + 1 : curAutoIdx()));
+$('prevS').addEventListener('click', () => goStage(st.manual ? st.manualIdx - 1 : curAutoIdx()));
+$('autoS').addEventListener('click', () => { exitManual(); pickTracked(); refreshPanel(true); });
+[...$('steps').children].forEach((chip, ci) => chip.addEventListener('click', () => {
+  const i = manualStages().findIndex(s => STEP[s[0]] === ci);
+  goStage(i < 0 ? 0 : i);
+}));
+
+/* ---------------- NH₄⁺ 구조 탐구 (드래그 회전 3D 모형) ---------------- */
+const ex = { view: 'NH4', rotY: 0.6, rotX: 0.35, drag: null, t: 0, phase: '' };
+const ecv = $('exCanvas'), ectx = ecv.getContext('2d');
+(function () { const dpr = Math.min(window.devicePixelRatio || 1, 2); ecv.width = 300 * dpr; ecv.height = 240 * dpr; ectx.setTransform(dpr, 0, 0, dpr, 0, 0); })();
+ecv.addEventListener('pointerdown', e => { ex.drag = { x: e.clientX, y: e.clientY }; ecv.setPointerCapture(e.pointerId); });
+ecv.addEventListener('pointermove', e => {
+  if (!ex.drag) return;
+  ex.rotY += (e.clientX - ex.drag.x) * 0.012;
+  ex.rotX = Math.max(-1.3, Math.min(1.3, ex.rotX + (e.clientY - ex.drag.y) * 0.012));
+  ex.drag = { x: e.clientX, y: e.clientY };
+});
+const endDrag = () => { ex.drag = null; };
+ecv.addEventListener('pointerup', endDrag); ecv.addEventListener('pointercancel', endDrag);
+seg('exView', v => { ex.view = v; ex.t = 0; });
+function eproj(v) {
+  const cy = Math.cos(ex.rotY), sy = Math.sin(ex.rotY);
+  const x = v[0] * cy + v[2] * sy, z = -v[0] * sy + v[2] * cy, y = v[1];
+  const cx = Math.cos(ex.rotX), sx = Math.sin(ex.rotX);
+  return { x: 150 + x * 62, y: 124 - (y * cx - z * sx) * 62, z: y * sx + z * cx };
+}
+function drawExplorer(now, real) {
+  const c = ectx, dark = matchMedia('(prefers-color-scheme: dark)').matches, ink = dark ? '#ddd' : '#333';
+  c.clearRect(0, 0, 300, 240);
+  if (!ex.drag) ex.rotY += real * 0.5;
+  ex.t += real;
+  let angle = 109.47, lp = 0, top = null, bondK = 1, phase = '';
+  if (ex.view === 'NH4') { top = 1.05; phase = '정사면체 · 109.5° · 네 N–H 결합 모두 동등 · 전하 +1'; }
+  else if (ex.view === 'NH3') { angle = 107; lp = 1; phase = '삼각뿔형 · 약 107° · 비공유 전자쌍 1개 · 전하 0'; }
+  else {
+    const T = (ex.t % 7) / 7;
+    if (T < 0.38) { angle = 107; lp = 1; bondK = 0; top = 3.0 + (1.15 - 3.0) * (T / 0.38); phase = '① H⁺가 NH₃의 비공유 전자쌍 쪽으로 다가옵니다'; }
+    else if (T < 0.55) { const k = (T - 0.38) / 0.17; angle = 107; lp = 1 - k; bondK = k; top = 1.15 - 0.1 * k; phase = '② 비공유 전자쌍을 H⁺와 함께 쓰는 배위 결합이 생깁니다'; }
+    else if (T < 0.8) { const k = (T - 0.55) / 0.25; angle = 107 + (109.47 - 107) * k; top = 1.05; phase = '③ 비공유 전자쌍의 더 센 반발이 사라져 결합각 107° → 109.5°'; }
+    else { top = 1.05; phase = '④ 정사면체 NH₄⁺ 완성: 네 N–H 결합은 이제 모두 동등'; }
+  }
+  if (phase !== ex.phase) { ex.phase = phase; $('exPhase').textContent = phase; }
+  const N = eproj([0, 0, 0]);
+  const hs = pyramid(angle, 3).map(d => ({ P: eproj([d[0] * 1.05, d[1] * 1.05, d[2] * 1.05]), plus: false }));
+  if (top != null) hs.push({ P: eproj([0, top, 0]), plus: bondK < 1, top: true });
+  // 비공유 전자쌍
+  if (lp > 0.02) {
+    const E = eproj([0, 1.1, 0]), a = Math.atan2(E.y - N.y, E.x - N.x), L = Math.hypot(E.x - N.x, E.y - N.y);
+    c.save(); c.globalAlpha = lp; c.translate(N.x, N.y); c.rotate(a);
+    c.fillStyle = 'rgba(255,215,64,.4)'; c.strokeStyle = 'rgba(200,150,0,.7)'; c.lineWidth = 1;
+    c.beginPath(); c.ellipse(L * 0.6, 0, Math.max(L * 0.55, 6), 15, 0, 0, 7); c.fill(); c.stroke();
+    c.fillStyle = '#7a5b00'; c.beginPath(); c.arc(L * 0.78, -5, 2.8, 0, 7); c.arc(L * 0.78, 5, 2.8, 0, 7); c.fill();
+    c.restore();
+  }
+  const drawH = h => {
+    c.strokeStyle = dark ? '#ccc' : '#555'; c.lineWidth = 5;
+    if (h.top && bondK < 1) { c.globalAlpha = bondK; }
+    c.beginPath(); c.moveTo(N.x, N.y); c.lineTo(h.P.x, h.P.y); c.stroke(); c.globalAlpha = 1;
+    if (h.plus) { ball(c, h.P.x, h.P.y, 13, '#ff6b6b', 'H⁺', '#fff'); }
+    else ball(c, h.P.x, h.P.y, 13, '#f0f0f0', 'H', '#333');
+  };
+  hs.filter(h => h.P.z < N.z).forEach(drawH);
+  ball(c, N.x, N.y, 21, '#4f7cff', 'N', '#fff');
+  hs.filter(h => h.P.z >= N.z).forEach(drawH);
+  // 결합각 호
+  const a1 = Math.atan2(hs[0].P.y - N.y, hs[0].P.x - N.x), a2 = Math.atan2(hs[1].P.y - N.y, hs[1].P.x - N.x);
+  let d = a2 - a1; while (d > Math.PI) d -= 2 * Math.PI; while (d < -Math.PI) d += 2 * Math.PI;
+  c.strokeStyle = '#e8740c'; c.lineWidth = 2; c.beginPath(); c.arc(N.x, N.y, 34, a1, a1 + d, d < 0); c.stroke();
+  const am = a1 + d / 2;
+  c.fillStyle = '#e8740c'; c.font = '700 12px sans-serif'; c.textAlign = 'center'; c.textBaseline = 'middle';
+  c.fillText((angle > 109 ? '109.5' : angle.toFixed(1).replace('.0', '')) + '°', N.x + Math.cos(am) * 52, N.y + Math.sin(am) * 52);
+  c.textAlign = 'left';
+  // 전하 표시
+  if (top != null && bondK >= 1) {
+    c.fillStyle = ink; c.font = '300 52px sans-serif'; c.fillText('[', 18, 124); c.fillText(']', 262, 124);
+    c.fillStyle = '#e03131'; c.font = '900 22px sans-serif'; c.fillText('+', 270, 54);
+  }
+  c.fillStyle = dark ? '#999' : '#777'; c.font = '11px sans-serif'; c.fillText('손가락으로 끌어서 돌려 보세요', 8, 14);
+}
+
+/* ---------------- 메인 루프 ---------------- */
+let last = performance.now(), statT = 0;
+function frame(now) {
+  const real = Math.min(0.05, (now - last) / 1000); last = now;
+  const dt = st.playing ? real * st.speed : 0;
+
+  if (dt > 0) {
+    for (const d of decos) { d.x += d.vx * dt; d.a += dt; d.y += Math.sin(d.a) * 3 * dt; if (d.x < -10) d.x = W + 10; if (d.x > W + 10) d.x = -10; }
+    for (const r of rain) { r.y += (r.y < GY ? 160 : 40) * dt; r.x -= (r.y < GY ? 30 : 0) * dt; if (r.y > H) { r.y = -10; r.x = Math.random() * W; } if (r.x < 0) r.x += W; }
+
+    const active = parts.filter(p => !p.dead).length;
+    if (st.manual) {
+      // 단계별 보기: 추적 입자만 움직이고, 그 단계가 끝나면 같은 단계를 반복
+      const m = tracked();
+      if (m) { update(m, dt); if (!m.dead && STAGE_OF[m.state] !== curManualKey()) setupStage(m, curManualKey()); }
+    } else if (st.mode === 'bio') {
+      spawnT -= dt;
+      if (spawnT <= 0 && active < MAX_ACTIVE) { spawnN2(); spawnT = 1.1; }
+    } else {
+      batchT -= dt;
+      if (batchT <= 0 && !spreader && active < MAX_ACTIVE - 4) spreader = { x: -20, dropped: 0, n: Math.min(10, MAX_ACTIVE - active) };
+      if (spreader) {
+        spreader.x += 110 * dt;
+        const every = W / (spreader.n + 1);
+        while (spreader.dropped < spreader.n && spreader.x > every * (spreader.dropped + 1)) { spawnFert(spreader.x); spreader.dropped++; }
+        if (spreader.x > W + 20) { spreader = null; batchT = 6.5; }
+      }
+    }
+    if (!st.manual) for (const p of parts) if (!p.dead) update(p, dt);
+    parts = parts.filter(p => !p.dead);
+  }
+  if (!tracked()) { pickTracked(); if (tracked()) refreshPanel(true); }
+  refreshPanel(false);
+
+  ctx.clearRect(0, 0, W, H);
+  drawScene(now);
+  drawParticles(now);
+  drawCaption(tracked());
+  const T = tracked();
+  drawMol(T ? T.sp : 'N2', now / 1600);
+  drawExplorer(now, dt > 0 || !st.playing ? real : 0);
+
+  statT -= real;
+  if (statT <= 0) { refreshStats(); statT = 0.25; }
+  if (noteTimer > 0) { noteTimer -= real; if (noteTimer <= 0) $('note').textContent = ''; }
+  requestAnimationFrame(frame);
+}
+
+resize(); refreshRatio(); refreshStats();
+for (let i = 0; i < 5; i++) { spawnN2(); parts[i].y = 20 + i * 30; }
+pickTracked();
+refreshPanel(true);
+requestAnimationFrame(frame);
+})();
+</script>
+</body>
+</html>
