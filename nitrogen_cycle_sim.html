@@ -167,6 +167,11 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0}
 </style>
 </head>
 <body>
+<div id="nojs" style="margin:12px 16px 0;padding:12px 14px;border:2px solid #c75b07;border-radius:12px;background:#fff4ea;color:#5a2a00;font-size:15px;line-height:1.55">
+  <b>⚠️ 지금은 미리보기 화면이라 애니메이션이 멈춰 있어요.</b><br>
+  카카오톡·파일 앱·드라이브의 미리보기는 프로그램(JavaScript)을 실행하지 않습니다.
+  파일을 저장한 뒤 <b>“다른 앱으로 열기 → Chrome 또는 Safari”</b>로 열거나, 컴퓨터에서는 파일을 <b>크롬·엣지 창에 끌어다 놓으면</b> 움직입니다.
+</div>
 <div class="page">
 
 <!-- ================= 도입부 ================= -->
@@ -397,6 +402,7 @@ input[type=range]{width:100%;accent-color:var(--accent);margin:6px 0}
 (() => {
 'use strict';
 const $ = id => document.getElementById(id);
+$('nojs').remove();   // 스크립트가 실행되면 미리보기 안내를 지움
 const darkMQ = matchMedia('(prefers-color-scheme: dark)');
 const isDark = () => document.documentElement.dataset.theme === 'dark' || (document.documentElement.dataset.theme !== 'light' && darkMQ.matches);
 
